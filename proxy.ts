@@ -27,12 +27,17 @@ import { NextRequest, NextResponse } from 'next/server'
  *
  *   // Inside a Route Handler:
  *   export async function GET(request: NextRequest) {
- *     const response = await refreshSession(request)
+ *     const { response, user } = await refreshSession(request)
  *     // response already carries refreshed Set-Cookie headers
  *     return response
  *   }
  */
-export async function refreshSession(request: NextRequest): Promise<NextResponse> {
+interface SessionResult {
+  response: NextResponse
+  user: { id: string } | null
+}
+
+export async function refreshSession(request: NextRequest): Promise<SessionResult> {
   // Start with a pass-through response — the request is forwarded as-is.
   // If token rotation occurs, this will be rebuilt below to carry new cookies.
   let response = NextResponse.next({ request })
@@ -70,27 +75,40 @@ export async function refreshSession(request: NextRequest): Promise<NextResponse
   // If the access token is expired, @supabase/ssr uses the refresh token
   // to obtain a new pair and triggers setAll() above — transparently rotating
   // the session without any additional application logic.
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  // Authorization: redirect unauthenticated users to /login when they
-  // attempt to access protected routes (e.g. /catalog). Defense in depth —
-  // the catalog page also checks getCurrentUser() and redirects.
-  if (!user && request.nextUrl.pathname.startsWith('/catalog')) {
+  return { response, user }
+}
+
+/**
+ * Routes that require an authenticated session.
+ * Unauthenticated requests to these paths are redirected to /login.
+ */
+const PROTECTED_ROUTES = ['/catalog', '/reports', '/orders']
+
+/**
+ * Named "proxy" export — required by Next.js 16 to recognize this file as the
+ * request proxy (successor to middleware.ts). Delegates to refreshSession()
+ * which contains the full implementation, then enforces route-level authorization.
+ */
+export async function proxy(request: NextRequest): Promise<NextResponse> {
+  const { response, user } = await refreshSession(request)
+
+  // Authorization: redirect unauthenticated users away from protected routes.
+  const { pathname } = request.nextUrl
+  const isProtected = PROTECTED_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  )
+
+  if (isProtected && !user) {
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/login'
     return NextResponse.redirect(loginUrl)
   }
 
   return response
-}
-
-/**
- * Named "proxy" export — required by Next.js 16 to recognize this file as the
- * request proxy (successor to middleware.ts). Delegates to refreshSession()
- * which contains the full implementation.
- */
-export async function proxy(request: NextRequest): Promise<NextResponse> {
-  return refreshSession(request)
 }
 
 /**

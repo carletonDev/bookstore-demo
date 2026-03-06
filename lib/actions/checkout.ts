@@ -5,13 +5,13 @@ import { getCurrentUser } from '@/lib/utils/currentUser'
 import { getBookPrices } from '@/lib/queries/orders'
 import type { BookFormat } from '@/types/database'
 
-interface CheckoutItem {
+export interface CheckoutItem {
   bookId: string
   format: BookFormat
   quantity: number
 }
 
-interface CheckoutResult {
+export interface CheckoutResult {
   success: boolean
   orderId?: string
   error?: string
