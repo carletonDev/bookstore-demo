@@ -45,13 +45,17 @@ export async function getGlobalSalesStats(): Promise<GlobalSalesStats> {
   const rows = data ?? [];
 
   const totalUnitsSold = rows.reduce(
-    (sum: number, row: { total_sold: number | null; total_revenue: number | null }) =>
-      sum + Number(row.total_sold ?? 0),
+    (
+      sum: number,
+      row: { total_sold: number | null; total_revenue: number | null },
+    ) => sum + Number(row.total_sold ?? 0),
     0,
   );
   const totalRevenue = rows.reduce(
-    (sum: number, row: { total_sold: number | null; total_revenue: number | null }) =>
-      sum + Number(row.total_revenue ?? 0),
+    (
+      sum: number,
+      row: { total_sold: number | null; total_revenue: number | null },
+    ) => sum + Number(row.total_revenue ?? 0),
     0,
   );
 
@@ -61,7 +65,9 @@ export async function getGlobalSalesStats(): Promise<GlobalSalesStats> {
     .select("id", { count: "exact", head: true });
 
   if (orderError) {
-    throw new Error(`getGlobalSalesStats order count failed: ${orderError.message}`);
+    throw new Error(
+      `getGlobalSalesStats order count failed: ${orderError.message}`,
+    );
   }
 
   return {
