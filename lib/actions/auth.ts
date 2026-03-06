@@ -19,6 +19,12 @@ import { redirect } from "next/navigation";
 export async function signInWithGoogle(): Promise<never> {
   const supabase = await createServerClient();
 
+  // Purge any stale or partial session before starting a new OAuth flow.
+  // Without this, a leftover PKCE code_verifier cookie from a previous
+  // failed attempt causes Supabase to reject the new code exchange —
+  // the root cause of the "first click fails, second click works" bug.
+  await supabase.auth.signOut();
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
