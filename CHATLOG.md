@@ -336,3 +336,22 @@ $$;
 - **`proxy.ts`** — Added the required `export async function proxy(request: NextRequest): Promise<NextResponse>` named export that delegates to `refreshSession()`. Next.js 16 uses `proxy.ts` as the successor to `middleware.ts` and requires either a default export or a named `proxy` export as the entry point — exporting only `refreshSession` was insufficient.
 - **`config` matcher** — Added `export const config = { matcher: [...] }` to restrict proxy execution to application routes only. Excludes `_next/static`, `_next/image`, `favicon.ico`, `login`, and `auth/callback` so static assets and the OAuth callback bypass session refresh entirely.
 - **Design**: `refreshSession` remains the implementation; `proxy` is a thin re-export that satisfies the Next.js 16 convention without duplicating logic.
+
+---
+
+## Bug Fix: Eliminating Hardcoded URLs for Vercel Deployment
+
+### Prompt (User)
+
+> The Vercel deployment is failing because it's redirecting to localhost:3000 after Google login. Update lib/utils/url.ts to use NEXT_PUBLIC_VERCEL_URL when present, falling back to http://localhost:3000. Ensure auth actions use this utility. Ensure proxy.ts uses no hardcoded URLs.
+
+### Root Cause
+
+`lib/utils/url.ts` was reading `NEXT_PUBLIC_APP_URL` which was never set on Vercel, causing `getAuthCallbackUrl()` to return `undefined/auth/callback` — breaking the Google OAuth redirect on every Vercel deployment.
+
+### Key Decisions / What Changed
+
+- **`lib/utils/url.ts`** — Removed `NEXT_PUBLIC_APP_URL` dependency entirely. Added `export function getURL()` which checks `process.env.NEXT_PUBLIC_VERCEL_URL` (set automatically by Vercel for all deployments) and returns `https://${NEXT_PUBLIC_VERCEL_URL}`. Falls back to `http://localhost:3000` for local development. No manual env var configuration required per environment.
+- All three URL helpers (`getAuthCallbackUrl`, `getAuthProxyUrl`, `getAuthCallbackUrlWithNext`) now delegate to `getURL()` — single source of truth preserved.
+- **`lib/actions/auth.ts`** — No change required; it already calls `getAuthCallbackUrl()` from `url.ts`. The fix propagates automatically.
+- **`proxy.ts`** — Confirmed no hardcoded URLs. All cookie and session logic operates on `request.cookies` and `NextResponse` objects derived from the incoming request — fully relative, environment-agnostic.

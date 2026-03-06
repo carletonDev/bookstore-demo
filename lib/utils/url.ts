@@ -1,7 +1,7 @@
 /**
  * Centralized auth URL helpers.
  *
- * All auth-related redirect URLs are derived from NEXT_PUBLIC_APP_URL here.
+ * All auth-related redirect URLs are derived from getURL() here.
  * If an endpoint path changes, update it in one place — not across every
  * action, route, and component that constructs an absolute URL.
  *
@@ -9,7 +9,24 @@
  * All functions are pure (no side effects).
  */
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL!
+/**
+ * Resolves the application base URL without a trailing slash.
+ *
+ * Priority:
+ *   1. NEXT_PUBLIC_VERCEL_URL — set automatically by Vercel for every
+ *      deployment (preview and production). Uses https://.
+ *   2. http://localhost:3000 — local development fallback.
+ *
+ * NEXT_PUBLIC_APP_URL is intentionally NOT used: it requires manual
+ * configuration per environment and was the root cause of the localhost
+ * redirect on Vercel deployments.
+ */
+export function getURL(): string {
+  if (process.env.NEXT_PUBLIC_VERCEL_URL) {
+    return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
+  }
+  return 'http://localhost:3000'
+}
 
 /**
  * The OAuth callback URL — passed as `redirectTo` in signInWithOAuth().
@@ -17,7 +34,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL!
  * Handler: app/auth/callback/route.ts
  */
 export function getAuthCallbackUrl(): string {
-  return `${APP_URL}/auth/callback`
+  return `${getURL()}/auth/callback`
 }
 
 /**
@@ -26,7 +43,7 @@ export function getAuthCallbackUrl(): string {
  * Handler: app/api/auth/proxy/route.ts
  */
 export function getAuthProxyUrl(): string {
-  return `${APP_URL}/api/auth/proxy`
+  return `${getURL()}/api/auth/proxy`
 }
 
 /**
@@ -34,7 +51,6 @@ export function getAuthProxyUrl(): string {
  * handler can redirect the user to their originally intended page after sign-in.
  */
 export function getAuthCallbackUrlWithNext(next: string): string {
-  const base = getAuthCallbackUrl()
   const encoded = encodeURIComponent(next.startsWith('/') ? next : `/${next}`)
-  return `${base}?next=${encoded}`
+  return `${getAuthCallbackUrl()}?next=${encoded}`
 }
