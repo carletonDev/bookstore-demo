@@ -1,6 +1,7 @@
 "use client";
 
-import { useTransition, useState, useCallback } from "react";
+import { useTransition, useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   SlideOver,
   SlideOverPanel,
@@ -12,44 +13,51 @@ import {
   DescriptionDetails,
 } from "@/components/description-list";
 import { Button } from "@/components/button";
-import { useCartStore, type CartItem } from "@/stores/cart";
+import { useCartStore } from "@/lib/store/useCart";
 import { processCheckout } from "@/lib/actions/checkout";
+import { fetchCartBookInfo, type CartBookInfo } from "@/lib/actions/cart";
 
 type CartDrawerProps = {
   open: boolean;
   onClose: () => void;
-  /** Map of bookId → { title, price } for display. Passed from the parent
-   *  that has access to book data. */
-  bookInfo: Map<string, { title: string; price: number }>;
 };
 
 function formatPrice(amount: number): string {
   return `$${amount.toFixed(2)}`;
 }
 
-function formatLabel(item: CartItem): string {
-  return `${item.format} × ${item.quantity}`;
-}
-
 /**
  * CartDrawer — Catalyst slide-over panel showing the shopping cart.
  *
- * Uses the Dialog (slide-over) for the panel and DescriptionList for
- * the order summary. Checkout triggers the processCheckout Server Action
- * which re-fetches live prices from the database.
+ * Cart store holds only bookId/format/quantity. Title and price are
+ * fetched from the database via fetchCartBookInfo when the drawer opens,
+ * maintaining the server as the single source of truth for metadata.
  */
-export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
+export function CartDrawer({ open, onClose }: CartDrawerProps) {
   const items = useCartStore((s) => s.items);
   const removeItem = useCartStore((s) => s.removeItem);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const clearCart = useCartStore((s) => s.clearCart);
+  const router = useRouter();
 
   const [isPending, startTransition] = useTransition();
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const [orderId, setOrderId] = useState<string | null>(null);
+  const [bookInfo, setBookInfo] = useState<Record<string, CartBookInfo>>({});
+  const [isLoadingInfo, setIsLoadingInfo] = useState(false);
+
+  // Fetch book metadata from the server when the drawer opens
+  useEffect(() => {
+    if (!open || items.length === 0) return;
+
+    const bookIds = [...new Set(items.map((item) => item.bookId))];
+    setIsLoadingInfo(true);
+    fetchCartBookInfo(bookIds)
+      .then(setBookInfo)
+      .finally(() => setIsLoadingInfo(false));
+  }, [open, items]);
 
   const subtotal = items.reduce((sum, item) => {
-    const info = bookInfo.get(item.bookId);
+    const info = bookInfo[item.bookId];
     return sum + (info ? info.price * item.quantity : 0);
   }, 0);
 
@@ -65,13 +73,14 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
       );
 
       if (result.success) {
-        setOrderId(result.orderId ?? null);
         clearCart();
+        onClose();
+        router.push(`/orders/success?orderId=${result.orderId}`);
       } else {
         setCheckoutError(result.error ?? "Checkout failed.");
       }
     });
-  }, [items, clearCart]);
+  }, [items, clearCart, onClose, router]);
 
   return (
     <SlideOver open={open} onClose={onClose}>
@@ -85,18 +94,6 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
           </Button>
         </div>
 
-        {/* Success message */}
-        {orderId && (
-          <div className="mt-4 rounded-lg bg-green-50 p-4 ring-1 ring-inset ring-green-200 dark:bg-green-950/30 dark:ring-green-800">
-            <p className="text-sm/6 font-medium text-green-800 dark:text-green-300">
-              Order placed successfully!
-            </p>
-            <p className="mt-1 text-xs text-green-700 dark:text-green-400">
-              Order ID: {orderId}
-            </p>
-          </div>
-        )}
-
         {/* Error message */}
         {checkoutError && (
           <div className="mt-4 rounded-lg bg-red-50 p-4 ring-1 ring-inset ring-red-200 dark:bg-red-950/30 dark:ring-red-800">
@@ -108,14 +105,18 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
 
         {/* Cart items */}
         <div className="mt-6 flex-1">
-          {items.length === 0 && !orderId ? (
+          {items.length === 0 ? (
             <p className="text-sm/6 text-zinc-500 dark:text-zinc-400">
               Your cart is empty.
+            </p>
+          ) : isLoadingInfo ? (
+            <p className="text-sm/6 text-zinc-500 dark:text-zinc-400">
+              Loading cart...
             </p>
           ) : (
             <ul className="divide-y divide-zinc-200 dark:divide-zinc-700">
               {items.map((item) => {
-                const info = bookInfo.get(item.bookId);
+                const info = bookInfo[item.bookId];
                 const title = info?.title ?? "Unknown Book";
                 const price = info?.price ?? 0;
 
@@ -153,7 +154,7 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
                         }
                         aria-label={`Decrease quantity of ${title}`}
                       >
-                        −
+                        -
                       </Button>
                       <span className="min-w-[2rem] text-center text-sm/6 text-zinc-950 dark:text-white">
                         {item.quantity}
@@ -189,11 +190,11 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
         </div>
 
         {/* Order summary */}
-        {items.length > 0 && (
+        {items.length > 0 && !isLoadingInfo && (
           <div className="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-700">
             <DescriptionList>
               {items.map((item) => {
-                const info = bookInfo.get(item.bookId);
+                const info = bookInfo[item.bookId];
                 return (
                   <div
                     key={`${item.bookId}-${item.format}-summary`}
@@ -203,7 +204,7 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
                       {info?.title ?? "Unknown"}
                     </DescriptionTerm>
                     <DescriptionDetails>
-                      {formatLabel(item)} ={" "}
+                      {item.format} x {item.quantity} ={" "}
                       {formatPrice((info?.price ?? 0) * item.quantity)}
                     </DescriptionDetails>
                   </div>
@@ -226,7 +227,7 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
                 onClick={handleCheckout}
                 disabled={isPending}
               >
-                {isPending ? "Processing…" : "Checkout"}
+                {isPending ? "Processing..." : "Checkout"}
               </Button>
             </div>
           </div>

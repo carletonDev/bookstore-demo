@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Heading } from "@/components/heading";
 import { Text } from "@/components/text";
 import { Button } from "@/components/button";
+import { CartButton } from "@/components/cart-button";
 import { signOut } from "@/lib/actions/auth";
 import { getCurrentUserProfile } from "@/lib/utils/currentUserProfile";
 
@@ -84,11 +85,14 @@ export default async function CatalogLayout({
                 {profile.fullName}
               </span>
             </Text>
-            <form action={signOut} className="lg:hidden">
-              <Button plain type="submit" className="text-xs">
-                Sign Out
-              </Button>
-            </form>
+            <div className="flex items-center gap-3">
+              <CartButton />
+              <form action={signOut} className="lg:hidden">
+                <Button plain type="submit" className="text-xs">
+                  Sign Out
+                </Button>
+              </form>
+            </div>
           </div>
         </header>
 

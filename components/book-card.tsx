@@ -1,6 +1,7 @@
 import { Heading } from "@/components/heading";
 import { Text } from "@/components/text";
 import { Badge } from "@/components/badge";
+import { AddToCartButton } from "@/components/add-to-cart-button";
 import type { BookCatalogItemWithRelations } from "@/types/database";
 
 interface BookCardProps {
@@ -93,6 +94,9 @@ export function BookCard({ book }: BookCardProps) {
             ))}
           </div>
         </div>
+
+        {/* Add to Cart */}
+        <AddToCartButton bookId={book.id} formats={book.formats} />
       </div>
     </article>
   );
