@@ -526,3 +526,79 @@ All four CI quality gates pass locally:
 - `npx tsc --noEmit` — 0 errors
 - `npx prettier --check .` — all files formatted
 - `npm run test` — 19/19 tests pass (672ms)
+
+---
+
+## Implementation: High-Scale Database Seeding
+
+### Prompt (User)
+
+> Create lib/db/seed.ts to seed 10 publishers, 50 authors, 12 genres, 210 books, reviews for ~55% of books, and 20 seed auth users. Use SUPABASE_SECRET_KEY, batch inserts, Codex-themed titles. Log row counts per table. Install @faker-js/faker and dotenv.
+
+### Key Decisions / What Changed
+
+- **`lib/db/seed.ts`** — New standalone Node.js seed script. Uses `createClient` from `@supabase/supabase-js` directly with `SUPABASE_SECRET_KEY` to obtain admin access (bypasses RLS). Loads `.env.local` from the project root via `dotenv.config({ path: path.resolve(process.cwd(), '.env.local') })`. Fails fast with a clear error message if env vars are missing.
+
+- **Title generation** — Template × topic combinatorial approach: 25 `TITLE_TEMPLATES` × 46 `TECH_TOPICS` = 1,150 unique possible titles. Shuffled and capped at 210. Guarantees authentic-sounding developer book titles (e.g. "Kafka at Scale", "Production-Ready OpenTelemetry") without repetition.
+
+- **Seed auth users** — Reviews require `user_id REFERENCES auth.users(id)`. The script creates 20 real auth.users rows via `supabase.auth.admin.createUser()` with `email_confirm: true`. These are seed-only accounts with `@seed.bookstore.dev` email domains.
+
+- **Review distribution** — ~55% of books receive 3–10 reviews each. `pickN` (without replacement) ensures `UNIQUE (book_id, user_id)` is never violated. Total reviews ~600.
+
+- **Batching** — All table inserts use `insertBatched()` helper (default batch size: 50 rows). Junction tables (`book_authors`, `book_genres`, `reviews`) use batch size 100. Minimises network round-trips against the Supabase PostgREST API.
+
+- **Rating aggregates** — Reviews are inserted via the Supabase client, which fires `trg_book_rating_aggregates` for every row. The trigger's O(1) incremental arithmetic updates `rating_sum` and `rating_count`; `rating_avg` is recalculated automatically as a `GENERATED ALWAYS AS STORED` column. No manual aggregate logic required in the seed.
+
+- **FTS search vector** — `trg_book_authors_search_vector` fires on every `book_authors` insert, so `search_vector` is fully populated for all 210 books after `seedBookAuthors()` completes.
+
+- **`package.json`** — Added `"seed": "tsx lib/db/seed.ts"` script. Added `@faker-js/faker ^9`, `@supabase/supabase-js ^2`, `dotenv ^16`, and `tsx ^4` as devDependencies.
+
+- **Key naming note** — The prompt references `SUPABASE_SERVICE_ROLE_KEY`. This project uses `SUPABASE_SECRET_KEY` (renamed in an earlier session). The seed script uses `SUPABASE_SECRET_KEY` consistently with the rest of the codebase.
+
+### Seed volume summary
+
+| Table         | Target rows |
+|---------------|-------------|
+| publishers    | 10          |
+| authors       | 50          |
+| genres        | 12          |
+| seed users    | 20          |
+| books         | 210         |
+| book_authors  | ~260        |
+| book_genres   | ~420        |
+| reviews       | ~600        |
+
+### Usage
+
+```bash
+npm install       # installs @faker-js/faker, dotenv, tsx
+npm run seed      # runs lib/db/seed.ts against the project in .env.local
+```
+
+---
+
+## Bug Fix: Resolving Initial Auth Failure and Double-Click Requirement
+
+### Prompt (User)
+
+> Fix the double-click auth bug. Before signInWithOAuth, call signOut() to clear stale sessions. In proxy.ts, clear sb-* cookies when an auth error is detected in the URL. In login/page.tsx, clear the error param from the URL after it's been displayed.
+
+### Root Cause
+
+The "first click fails, second click works" bug has three contributing causes:
+
+1. **Stale PKCE code_verifier** — Supabase PKCE OAuth stores a `code_verifier` cookie at the start of each flow. If a previous attempt failed mid-way (e.g. popup closed, network error), that cookie persists. When `signInWithOAuth` starts a new flow, the new `code_verifier` is written, but `exchangeCodeForSession` may receive a stale state. The second click overwrites all stale cookies and succeeds.
+
+2. **Ghost session cookies** — An expired or partial access token in `sb-*` cookies can cause `getUser()` in `refreshSession()` to behave unexpectedly during the callback flow.
+
+3. **Persistent error banner on refresh** — After a failed auth, the browser URL contains `?error=auth_callback_failed`. Refreshing the page re-renders the error banner even though the failure is no longer relevant.
+
+### Key Decisions / What Changed
+
+- **`lib/actions/auth.ts`** — Added `await supabase.auth.signOut()` as the first statement inside `signInWithGoogle()`, before `signInWithOAuth()`. This invalidates any stale session server-side and triggers `setAll()` to clear all `sb-*` cookies from the browser before the new PKCE flow begins. Primary fix for the double-click bug.
+
+- **`proxy.ts`** — Added cookie purge guard inside `proxy()`: when `pathname === '/login'` and `searchParams.has('error')`, iterates all request cookies and calls `response.cookies.delete(name)` for every cookie prefixed with `sb-`. This is defense-in-depth — ensures the browser receives explicit `Set-Cookie: sb-*=; Max-Age=0` headers when landing on the error page, so the next button click always starts from a clean state. Also updated the `config.matcher` regex to remove the `/login` exclusion — the proxy must run on `/login` for this guard to fire.
+
+- **`app/login/clear-error-param.tsx`** — New `'use client'` component. Calls `router.replace('/login', { scroll: false })` inside a `useEffect` on mount. Strips `?error=...` from the browser URL history entry once the user has seen the banner. Zero visible output — purely a URL cleanup side-effect.
+
+- **`app/login/page.tsx`** — Imported `ClearErrorParam`. When `errorMessage` is truthy, renders `<Alert>` and `<ClearErrorParam />` together inside a fragment so the URL is cleaned immediately after the banner appears.

@@ -3,6 +3,7 @@ import { Text } from "@/components/text";
 import { Button } from "@/components/button";
 import { Alert } from "@/components/alert";
 import { signInWithGoogle } from "@/lib/actions/auth";
+import { ClearErrorParam } from "./clear-error-param";
 
 interface LoginPageProps {
   // searchParams is a Promise in Next.js 16 (async request APIs)
@@ -32,7 +33,14 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         {/* Card */}
         <div className="rounded-xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-800 dark:ring-white/10 p-8 space-y-6">
           {/* Error banner — Catalyst Alert, destructive variant */}
-          {errorMessage && <Alert variant="destructive">{errorMessage}</Alert>}
+          {/* ClearErrorParam strips ?error from the URL on mount so a page  */}
+          {/* refresh doesn't re-show the banner after the user has seen it. */}
+          {errorMessage && (
+            <>
+              <Alert variant="destructive">{errorMessage}</Alert>
+              <ClearErrorParam />
+            </>
+          )}
 
           {/* Google sign-in — Catalyst Button (outline), form action triggers Server Action */}
           <form action={signInWithGoogle}>

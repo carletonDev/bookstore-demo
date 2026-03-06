@@ -100,8 +100,22 @@ const PROTECTED_ROUTES = ["/catalog", "/reports", "/orders"];
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { response, user } = await refreshSession(request);
 
+  const { pathname, searchParams } = request.nextUrl;
+
+  // Cookie purge: if the user has landed on /login with an error param, a
+  // previous OAuth attempt failed. Any lingering sb-* cookies (stale access
+  // token, PKCE code_verifier) will corrupt the next attempt. Delete them all
+  // from the response so the browser starts the next flow with a clean slate.
+  // This is defense-in-depth alongside the signOut() in signInWithGoogle().
+  if (pathname === "/login" && searchParams.has("error")) {
+    request.cookies.getAll().forEach(({ name }) => {
+      if (name.startsWith("sb-")) {
+        response.cookies.delete(name);
+      }
+    });
+  }
+
   // Authorization: redirect unauthenticated users away from protected routes.
-  const { pathname } = request.nextUrl;
   const isProtected = PROTECTED_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
@@ -122,6 +136,9 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
  */
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|login|auth/callback).*)",
+    // Excludes static assets and the OAuth callback.
+    // /login is intentionally included so the proxy can purge stale sb-* cookies
+    // when the user lands there after a failed auth attempt (?error=...).
+    "/((?!_next/static|_next/image|favicon\\.ico|auth/callback).*)",
   ],
 };
