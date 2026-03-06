@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
+import type React from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 
 type DialogProps = {
   open: boolean
@@ -9,9 +10,38 @@ type DialogProps = {
   className?: string
 }
 
-type DialogPanelProps = {
-  children: React.ReactNode
-  className?: string
+/**
+ * Catalyst Dialog component.
+ * Renders a modal dialog with backdrop, centered content, and ESC-to-close.
+ * Uses the native <dialog> element for accessibility.
+ */
+export function Dialog({ open, onClose, children, className = '' }: DialogProps) {
+  const ref = useRef<HTMLDialogElement>(null)
+
+  useEffect(() => {
+    const dialog = ref.current
+    if (!dialog) return
+
+    if (open && !dialog.open) {
+      dialog.showModal()
+    } else if (!open && dialog.open) {
+      dialog.close()
+    }
+  }, [open])
+
+  const handleClose = useCallback(() => {
+    onClose()
+  }, [onClose])
+
+  return (
+    <dialog
+      ref={ref}
+      onClose={handleClose}
+      className={`backdrop:bg-zinc-950/25 dark:backdrop:bg-zinc-950/50 rounded-2xl bg-white p-0 shadow-lg ring-1 ring-zinc-950/10 dark:bg-zinc-900 dark:ring-white/10 ${className}`.trim()}
+    >
+      <div className="p-6">{children}</div>
+    </dialog>
+  )
 }
 
 type DialogTitleProps = {
@@ -19,75 +49,34 @@ type DialogTitleProps = {
   className?: string
 }
 
-/**
- * Catalyst-style Dialog implemented as a slide-over panel.
- *
- * Opens from the right edge of the viewport with a backdrop overlay.
- * Matches the Catalyst design language: zinc palette, ring borders, dark mode.
- */
-export function Dialog({ open, onClose, children, className = '' }: DialogProps) {
-  const backdropRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    document.body.style.overflow = 'hidden'
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown)
-      document.body.style.overflow = ''
-    }
-  }, [open, onClose])
-
-  if (!open) return null
-
-  return (
-    <div className={`fixed inset-0 z-50 ${className}`.trim()} role="dialog" aria-modal="true">
-      {/* Backdrop */}
-      <div
-        ref={backdropRef}
-        className="fixed inset-0 bg-black/30 transition-opacity dark:bg-black/50"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      {/* Slide-over panel container */}
-      <div className="fixed inset-y-0 right-0 flex max-w-full pl-10">
-        {children}
-      </div>
-    </div>
-  )
-}
-
-/**
- * Panel content area for the Dialog slide-over.
- */
-export function DialogPanel({ children, className = '' }: DialogPanelProps) {
-  return (
-    <div
-      className={`w-screen max-w-md transform bg-white shadow-xl transition-transform dark:bg-zinc-900 ${className}`.trim()}
-    >
-      <div className="flex h-full flex-col overflow-y-auto px-6 py-6">
-        {children}
-      </div>
-    </div>
-  )
-}
-
-/**
- * Title element for the Dialog.
- */
 export function DialogTitle({ children, className = '' }: DialogTitleProps) {
   return (
-    <h2
+    <h3
       className={`text-lg/7 font-semibold text-zinc-950 dark:text-white ${className}`.trim()}
     >
       {children}
-    </h2>
+    </h3>
+  )
+}
+
+type DialogBodyProps = {
+  children: React.ReactNode
+  className?: string
+}
+
+export function DialogBody({ children, className = '' }: DialogBodyProps) {
+  return <div className={`mt-4 ${className}`.trim()}>{children}</div>
+}
+
+type DialogActionsProps = {
+  children: React.ReactNode
+  className?: string
+}
+
+export function DialogActions({ children, className = '' }: DialogActionsProps) {
+  return (
+    <div className={`mt-6 flex justify-end gap-3 ${className}`.trim()}>
+      {children}
+    </div>
   )
 }
