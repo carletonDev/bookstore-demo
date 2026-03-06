@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/utils/currentUser";
 import { getBookPrices } from "@/lib/queries/orders";
@@ -126,6 +127,9 @@ export async function processCheckout(
       error: `Failed to save order items: ${itemsError.message}`,
     };
   }
+
+  revalidatePath("/reports");
+  revalidatePath("/orders");
 
   return { success: true, orderId: order.id };
 }
