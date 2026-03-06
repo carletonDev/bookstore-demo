@@ -380,3 +380,24 @@ $$;
 - All three URL helpers (`getAuthCallbackUrl`, `getAuthProxyUrl`, `getAuthCallbackUrlWithNext`) now delegate to `getURL()` — single source of truth preserved.
 - **`lib/actions/auth.ts`** — No change required; it already calls `getAuthCallbackUrl()` from `url.ts`. The fix propagates automatically.
 - **`proxy.ts`** — Confirmed no hardcoded URLs. All cookie and session logic operates on `request.cookies` and `NextResponse` objects derived from the incoming request — fully relative, environment-agnostic.
+
+---
+
+## Implementation: Catalog and Social Proof Logic
+
+### Prompt (User)
+
+> Implement the Book Catalog and Review system at the new /catalog path. Route Migration: Move the catalog logic to app/catalog/page.tsx as a Server Component handling q, genre, and cursor URL params. UI Shell: Wrap in Catalyst SidebarLayout with Genre filters and Format toggle. BookCard: Build using Catalyst Heading, Text, Badge with 1-decimal rating_avg. Social Proof: Implement submitReview Server Action handling unique user/book constraint and relying on O(1) database trigger. Create Catalyst Dialog for star rating. Authorization: In proxy.ts, ensure /catalog without valid session redirects to /login.
+
+### Key Decisions / What Changed
+
+- **`components/badge.tsx`** — New Catalyst Badge component. Inline pill with colored background and ring border. Supports 7 color variants (zinc, green, amber, red, blue, purple, pink). Used in BookCard for rating display and genre tags.
+- **`components/dialog.tsx`** — New Catalyst Dialog component. Uses native `<dialog>` element with `showModal()` for accessibility. Exports `Dialog`, `DialogTitle`, `DialogBody`, `DialogActions` sub-components. Marked `'use client'` for imperative open/close via `useRef`.
+- **`components/book-card.tsx`** — New BookCard Server Component. Uses Catalyst `Heading` (level 4) for title, `Text` for author and review count, `Badge` (amber) for prominent 1-decimal `rating_avg` display. Shows genre tags as blue Badges. Displays cover image with aspect-[3/4] placeholder.
+- **`components/catalog-sidebar.tsx`** — New CatalogSidebar Server Component. Renders genre filter links and format toggle links. Navigation via URL params (no client state). Uses `Heading` (level 4) for section labels, `Text` for help text. Active filters highlighted with zinc-100 background.
+- **`components/review-dialog.tsx`** — New ReviewDialog Client Component. Collects star rating (1-5) via interactive star buttons with hover preview. Uses `useActionState` with `submitReview` Server Action. Displays success/error feedback via `Alert` component. Catalyst `Dialog` for the modal shell.
+- **`lib/actions/reviews.ts`** — New `submitReview` Server Action (Command pattern). Validates input at boundary (rating 1-5, non-empty bookId). Checks `getCurrentUser()` for authentication. Handles Postgres `23505` unique violation (user already reviewed book) with user-friendly message. Relies on `trg_book_rating_aggregates` trigger for O(1) aggregate update — no application-layer aggregation.
+- **`lib/queries/genres.ts`** — New `getGenres()` Facade. Fetches all genres ordered alphabetically. Used by catalog sidebar for filter rendering.
+- **`app/catalog/layout.tsx`** — Catalyst SidebarLayout shell. Sticky top bar with Bookstore heading and Sign Out button. Max-width container for main content area.
+- **`app/catalog/page.tsx`** — Server Component at `/catalog`. Handles `q` (search), `genre` (filter), `format` (filter), and `cursor` (pagination) URL parameters. Validates format against allowed values. Fetches books and genres in parallel via `Promise.all`. Renders search bar, BookCard grid, pagination link, and ReviewDialog per book. Authorization: redirects to `/login` if `getCurrentUser()` returns null.
+- **`proxy.ts`** — Added authorization guard: unauthenticated requests to `/catalog` are redirected to `/login` before reaching the page. Defense in depth — the page component also checks `getCurrentUser()`. Destructured `getUser()` result to access `user` object for the check.

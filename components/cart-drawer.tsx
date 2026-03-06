@@ -1,7 +1,7 @@
 'use client'
 
 import { useTransition, useState, useCallback } from 'react'
-import { Dialog, DialogPanel, DialogTitle } from '@/components/dialog'
+import { SlideOver, SlideOverPanel, SlideOverTitle } from '@/components/slide-over'
 import {
   DescriptionList,
   DescriptionTerm,
@@ -70,10 +70,10 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
   }, [items, clearCart])
 
   return (
-    <Dialog open={open} onClose={onClose}>
-      <DialogPanel>
+    <SlideOver open={open} onClose={onClose}>
+      <SlideOverPanel>
         <div className="flex items-center justify-between">
-          <DialogTitle>Shopping Cart</DialogTitle>
+          <SlideOverTitle>Shopping Cart</SlideOverTitle>
           <Button plain onClick={onClose} aria-label="Close cart">
             <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
@@ -218,7 +218,7 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
             </div>
           </div>
         )}
-      </DialogPanel>
-    </Dialog>
+      </SlideOverPanel>
+    </SlideOver>
   )
 }
