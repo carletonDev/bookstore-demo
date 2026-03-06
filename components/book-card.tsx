@@ -1,26 +1,29 @@
-import { Heading } from '@/components/heading'
-import { Text } from '@/components/text'
-import { Badge } from '@/components/badge'
-import type { BookCatalogItemWithRelations } from '@/types/database'
+import { Heading } from "@/components/heading";
+import { Text } from "@/components/text";
+import { Badge } from "@/components/badge";
+import type { BookCatalogItemWithRelations } from "@/types/database";
 
 interface BookCardProps {
-  book: BookCatalogItemWithRelations
+  book: BookCatalogItemWithRelations;
 }
 
 function formatAuthors(
-  authors: Pick<{ id: string; first_name: string; last_name: string }, 'first_name' | 'last_name'>[],
+  authors: Pick<
+    { id: string; first_name: string; last_name: string },
+    "first_name" | "last_name"
+  >[],
 ): string {
-  if (authors.length === 0) return 'Unknown Author'
-  return authors.map((a) => `${a.first_name} ${a.last_name}`).join(', ')
+  if (authors.length === 0) return "Unknown Author";
+  return authors.map((a) => `${a.first_name} ${a.last_name}`).join(", ");
 }
 
 function formatRating(avg: number | null): string {
-  if (avg === null) return 'No ratings'
-  return avg.toFixed(1)
+  if (avg === null) return "No ratings";
+  return avg.toFixed(1);
 }
 
 function formatPrice(price: number): string {
-  return `$${price.toFixed(2)}`
+  return `$${price.toFixed(2)}`;
 }
 
 /**
@@ -31,8 +34,8 @@ function formatPrice(price: number): string {
  * Server Component — no client interactivity needed for the card itself.
  */
 export function BookCard({ book }: BookCardProps) {
-  const ratingDisplay = formatRating(book.rating_avg)
-  const hasRating = book.rating_avg !== null
+  const ratingDisplay = formatRating(book.rating_avg);
+  const hasRating = book.rating_avg !== null;
 
   return (
     <article className="group rounded-xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-800 dark:ring-white/10 overflow-hidden transition-shadow hover:shadow-md">
@@ -66,12 +69,13 @@ export function BookCard({ book }: BookCardProps) {
 
         {/* Rating — prominent display */}
         <div className="flex items-center gap-2">
-          <Badge color={hasRating ? 'amber' : 'zinc'}>
+          <Badge color={hasRating ? "amber" : "zinc"}>
             {hasRating ? `★ ${ratingDisplay}` : ratingDisplay}
           </Badge>
           {hasRating && (
             <Text className="text-xs">
-              ({book.rating_count} {book.rating_count === 1 ? 'review' : 'reviews'})
+              ({book.rating_count}{" "}
+              {book.rating_count === 1 ? "review" : "reviews"})
             </Text>
           )}
         </div>
@@ -91,5 +95,5 @@ export function BookCard({ book }: BookCardProps) {
         </div>
       </div>
     </article>
-  )
+  );
 }

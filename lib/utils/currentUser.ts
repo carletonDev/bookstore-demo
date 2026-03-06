@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabase/server'
+import { createServerClient } from "@/lib/supabase/server";
 
 /**
  * Returns the authenticated user's ID from the active Supabase session.
@@ -16,12 +16,12 @@ import { createServerClient } from '@/lib/supabase/server'
  * via the proxy route (app/auth/proxy/route.ts).
  */
 export async function getCurrentUser(): Promise<string | null> {
-  const supabase = await createServerClient()
+  const supabase = await createServerClient();
   const {
     data: { user },
     error,
-  } = await supabase.auth.getUser()
+  } = await supabase.auth.getUser();
 
-  if (error || !user) return null
-  return user.id
+  if (error || !user) return null;
+  return user.id;
 }

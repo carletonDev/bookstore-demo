@@ -1,6 +1,6 @@
-import { Heading } from '@/components/heading'
-import { Button } from '@/components/button'
-import { signOut } from '@/lib/actions/auth'
+import { Heading } from "@/components/heading";
+import { Button } from "@/components/button";
+import { signOut } from "@/lib/actions/auth";
 
 /**
  * Catalog layout — Catalyst SidebarLayout shell.
@@ -11,7 +11,7 @@ import { signOut } from '@/lib/actions/auth'
 export default function CatalogLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900">
@@ -32,5 +32,5 @@ export default function CatalogLayout({
         {children}
       </div>
     </div>
-  )
+  );
 }

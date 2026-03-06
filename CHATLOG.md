@@ -21,6 +21,7 @@
 ### Response (Claude)
 
 See full plan below in this session's architecture document. Key decisions made:
+
 - Cursor-based pagination chosen over offset for ~10,000 book catalog
 - TEXT[] with CHECK constraint for formats (single shared price)
 - tsvector + GIN index for unified title/author search
@@ -82,9 +83,9 @@ Rewrote `README.md` from the default `create-next-app` boilerplate to a full pro
 ### Key Decisions / What Changed
 
 - **CLAUDE.md** — Added a `## Coding Standards` section covering: all five SOLID principles with project-specific examples, DRY rules with extraction thresholds and exceptions, and three categories of design patterns:
-  - *Creational*: Factory Function (Supabase client), Builder (query composition)
-  - *Structural*: Adapter (DB row → view model), Decorator (auth guards / Suspense wrappers), Facade (`lib/` domain API hiding Supabase details)
-  - *Behavioral*: Strategy (sort/search/pagination), Observer (Supabase Realtime in hooks), Command (Server Actions named imperatively)
+  - _Creational_: Factory Function (Supabase client), Builder (query composition)
+  - _Structural_: Adapter (DB row → view model), Decorator (auth guards / Suspense wrappers), Facade (`lib/` domain API hiding Supabase details)
+  - _Behavioral_: Strategy (sort/search/pagination), Observer (Supabase Realtime in hooks), Command (Server Actions named imperatively)
 - **`migrations/0001_initial_schema.sql`** — Created initial migration covering all tables, indexes, and triggers in dependency order:
   1. Extensions (`pgcrypto`)
   2. `publishers`, `authors`, `genres`
@@ -133,12 +134,12 @@ Rewrote `README.md` from the default `create-next-app` boilerplate to a full pro
 ### Key Decisions / What Changed
 
 - **`types/database.ts`** — Created with the following structure:
-  - *Literal types*: `OrderStatus` (5 values), `BookFormat` (4 values), `StarRating` (1 | 2 | 3 | 4 | 5)
-  - *Base interfaces*: `Publisher`, `Author`, `Genre`, `Book`, `Review`, `Order`, `OrderItem`, `BookAuthor`, `BookGenre`
-  - *Smart field mapping*: `rating_avg: number | null` (NULL when no reviews), `formats: BookFormat[]`, `purchased_price` annotated to never be used for live pricing, `search_vector` marked optional (excluded from most selects)
-  - *Enriched types*: `BookWithRelations` (extends Book with publisher, authors[], genres[]), `OrderWithItems` (Order with `OrderItemWithBook[]`), `BookCatalogItem` (slim Pick for list views), `BookCatalogItemWithRelations` (catalog card with nested author/genre projections)
-  - *Pagination*: `PaginationCursor` opaque alias, `PaginatedResult<T>` generic envelope with `data`, `nextCursor`, `hasMore`
-  - *Search*: `BookSearchParams` covering query, genreSlug, format, price range, cursor, and limit
+  - _Literal types_: `OrderStatus` (5 values), `BookFormat` (4 values), `StarRating` (1 | 2 | 3 | 4 | 5)
+  - _Base interfaces_: `Publisher`, `Author`, `Genre`, `Book`, `Review`, `Order`, `OrderItem`, `BookAuthor`, `BookGenre`
+  - _Smart field mapping_: `rating_avg: number | null` (NULL when no reviews), `formats: BookFormat[]`, `purchased_price` annotated to never be used for live pricing, `search_vector` marked optional (excluded from most selects)
+  - _Enriched types_: `BookWithRelations` (extends Book with publisher, authors[], genres[]), `OrderWithItems` (Order with `OrderItemWithBook[]`), `BookCatalogItem` (slim Pick for list views), `BookCatalogItemWithRelations` (catalog card with nested author/genre projections)
+  - _Pagination_: `PaginationCursor` opaque alias, `PaginatedResult<T>` generic envelope with `data`, `nextCursor`, `hasMore`
+  - _Search_: `BookSearchParams` covering query, genreSlug, format, price range, cursor, and limit
 
 ---
 
@@ -156,10 +157,10 @@ Rewrote `README.md` from the default `create-next-app` boilerplate to a full pro
 - **`lib/actions/setCurrentUser.ts`** — `'use server'` action. Imports `CURRENT_USER_COOKIE_NAME` from `currentUser.ts` (DRY). Validates `userId` at the boundary. Sets cookie: `httpOnly: false` (Client Combobox must read it), `sameSite: lax`, 7-day expiry.
 - **`lib/utils/pagination.ts`** — Three pure functions: `encodeCursor(title, id)` (base64url JSON), `decodeCursor(cursor)` (typed parse with shape validation), `buildCursorFilter(cursor)` (PostgREST `.or()` string simulating `(title, id) > (cursorTitle, cursorId)` row comparison with double-quote escaping).
 - **`lib/queries/books.ts`** — `getBooks(params)` implementing:
-  - *Builder pattern*: query composed incrementally; each optional param appends a clause
-  - *Adapter pattern*: `adaptBookCatalogRow()` flattens `[{ author: {...} }]` → `Author[]` shape
-  - *Facade pattern*: callers never touch the Supabase client
-  - *Strategy pattern*: `CATALOG_SELECT` vs `CATALOG_SELECT_GENRE_FILTER` selected based on params (latter uses `!inner` for INNER JOIN genre filtering)
+  - _Builder pattern_: query composed incrementally; each optional param appends a clause
+  - _Adapter pattern_: `adaptBookCatalogRow()` flattens `[{ author: {...} }]` → `Author[]` shape
+  - _Facade pattern_: callers never touch the Supabase client
+  - _Strategy pattern_: `CATALOG_SELECT` vs `CATALOG_SELECT_GENRE_FILTER` selected based on params (latter uses `!inner` for INNER JOIN genre filtering)
   - FTS via `.textSearch('search_vector', query, { type: 'plain' })` — uses `idx_books_search_gin`
   - Format filter via `.contains('formats', [format])` — uses `idx_books_formats_gin`
   - Cursor via `.or(buildCursorFilter(decoded))` — uses `idx_books_cursor`
@@ -261,6 +262,7 @@ I am separating the OAuth Callback (identity exchange) from the Auth Proxy (sess
 ### Architectural Rationale: Price Snapshotting
 
 The `processCheckout` action re-fetches prices from the database at checkout time rather than trusting prices sent from the client. This is a deliberate security and integrity decision:
+
 1. **Security** — Client-submitted prices can be tampered with. The server is the only authority on pricing.
 2. **Historical integrity** — The `purchased_price` column in `order_items` preserves the exact price at the moment of purchase. Future price changes to the `books` table do not retroactively alter order history.
 3. **Consistency** — The `total_amount` on the `orders` row is always the sum of `purchased_price × quantity` across its items, computed from the same price fetch.
@@ -288,12 +290,14 @@ The `processCheckout` action re-fetches prices from the database at checkout tim
 **The problem:** This is still a full per-book aggregate scan on every write. A book with 10,000 reviews causes 10,000 rows to be read just to increment a counter by one.
 
 **My correction:** Added a `rating_sum` column to `books` and rewrote the trigger to use incremental arithmetic:
+
 - `INSERT`: `rating_sum += NEW.rating`, `rating_count += 1`
 - `DELETE`: `rating_sum -= OLD.rating`, `rating_count -= 1`
 - `UPDATE`: `rating_sum += (NEW.rating - OLD.rating)`, `rating_count` unchanged
 - `rating_avg` derived as `rating_sum / NULLIF(rating_count, 0)` — handles division by zero
 
 **Updated DDL:**
+
 ```sql
 -- Add to books table
 rating_sum   INTEGER NOT NULL DEFAULT 0,
@@ -303,6 +307,7 @@ rating_avg   NUMERIC(3, 2) GENERATED ALWAYS AS
 ```
 
 **Updated trigger:**
+
 ```sql
 CREATE OR REPLACE FUNCTION update_book_rating_aggregates()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
@@ -449,3 +454,42 @@ $$;
 - **`app/catalog/layout.tsx`** — Catalyst SidebarLayout shell. Sticky top bar with Bookstore heading and Sign Out button. Max-width container for main content area.
 - **`app/catalog/page.tsx`** — Server Component at `/catalog`. Handles `q` (search), `genre` (filter), `format` (filter), and `cursor` (pagination) URL parameters. Validates format against allowed values. Fetches books and genres in parallel via `Promise.all`. Renders search bar, BookCard grid, pagination link, and ReviewDialog per book. Authorization: redirects to `/login` if `getCurrentUser()` returns null.
 - **`proxy.ts`** — Added authorization guard: unauthenticated requests to `/catalog` are redirected to `/login` before reaching the page. Defense in depth — the page component also checks `getCurrentUser()`. Destructured `getUser()` result to access `user` object for the check.
+
+---
+
+## Implementation: GitHub Actions CI Pipeline
+
+### Prompt (User)
+
+> Create a GitHub Actions CI pipeline for automated quality assurance. File: .github/workflows/ci.yml. Triggers: push to main and all pull_request events. Steps: checkout, Node LTS setup, npm ci, lint, type check (tsc --noEmit), prettier --check, and vitest. Ensure tests run headlessly without Supabase secrets via mocks.
+
+### Key Decisions / What Changed
+
+- **`.github/workflows/ci.yml`** — Created single-job CI pipeline (`quality`) on `ubuntu-latest`. Triggers on `push` to `main` and all `pull_request` events. Steps in order:
+  1. `actions/checkout@v4` — Checkout code
+  2. `actions/setup-node@v4` with `node-version: lts/*` and `cache: npm` — Install Node.js LTS with npm caching for fast installs
+  3. `npm ci` — Clean install from lockfile (deterministic)
+  4. `npm run lint` — ESLint via project script
+  5. `npx tsc --noEmit` — TypeScript type checking without emitting files
+  6. `npx prettier --check .` — Verify code formatting consistency
+  7. `npm run test` — Run Vitest test suite (19 tests across 2 files)
+
+- **`prettier` (devDependency)** — Added to `package.json` so the `prettier --check` CI step has the binary available. Previously not installed.
+
+- **`.prettierignore`** — Created to exclude `.next/`, `node_modules/`, and `package-lock.json` from formatting checks.
+
+- **Prettier formatting** — Ran `npx prettier --write .` to format all 41 files that had style inconsistencies, so the CI `--check` step passes from the first run.
+
+- **`__tests__/checkout.test.ts`** — Fixed two TypeScript errors (TS2556: spread argument type mismatch) in mock factory functions. Changed `(...args: unknown[]) => mockFn(...args)` to `() => mockFn()` since the mocks are typed as zero-arg functions.
+
+### CI Environment: No Supabase Secrets Required
+
+Both test files (`checkout.test.ts` and `pagination.test.ts`) use `vi.mock()` to intercept all Supabase client imports. The mocks replace `createServerClient`, `getCurrentUser`, and `getBookPrices` with in-memory fakes. Tests were verified to pass with all `SUPABASE_*` and `NEXT_PUBLIC_SUPABASE_*` environment variables unset — no secrets needed in CI.
+
+### Verification
+
+All four CI quality gates pass locally:
+- `npm run lint` — 0 errors (1 warning: `<img>` vs `<Image>`)
+- `npx tsc --noEmit` — 0 errors
+- `npx prettier --check .` — all files formatted
+- `npm run test` — 19/19 tests pass (672ms)

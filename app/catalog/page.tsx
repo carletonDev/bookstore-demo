@@ -1,26 +1,31 @@
-import { redirect } from 'next/navigation'
-import { Heading } from '@/components/heading'
-import { Text } from '@/components/text'
-import { Button } from '@/components/button'
-import { BookCard } from '@/components/book-card'
-import { CatalogSidebar } from '@/components/catalog-sidebar'
-import { ReviewDialog } from '@/components/review-dialog'
-import { getBooks } from '@/lib/queries/books'
-import { getGenres } from '@/lib/queries/genres'
-import { getCurrentUser } from '@/lib/utils/currentUser'
-import type { BookFormat } from '@/types/database'
-import Link from 'next/link'
+import { redirect } from "next/navigation";
+import { Heading } from "@/components/heading";
+import { Text } from "@/components/text";
+import { Button } from "@/components/button";
+import { BookCard } from "@/components/book-card";
+import { CatalogSidebar } from "@/components/catalog-sidebar";
+import { ReviewDialog } from "@/components/review-dialog";
+import { getBooks } from "@/lib/queries/books";
+import { getGenres } from "@/lib/queries/genres";
+import { getCurrentUser } from "@/lib/utils/currentUser";
+import type { BookFormat } from "@/types/database";
+import Link from "next/link";
 
 interface CatalogPageProps {
   searchParams: Promise<{
-    q?: string
-    genre?: string
-    format?: string
-    cursor?: string
-  }>
+    q?: string;
+    genre?: string;
+    format?: string;
+    cursor?: string;
+  }>;
 }
 
-const VALID_FORMATS = new Set<string>(['hardcover', 'softcover', 'audiobook', 'ereader'])
+const VALID_FORMATS = new Set<string>([
+  "hardcover",
+  "softcover",
+  "audiobook",
+  "ereader",
+]);
 
 /**
  * Catalog page — Server Component.
@@ -31,24 +36,25 @@ const VALID_FORMATS = new Set<string>(['hardcover', 'softcover', 'audiobook', 'e
  * (Also enforced at the proxy level for defense in depth.)
  */
 export default async function CatalogPage({ searchParams }: CatalogPageProps) {
-  const userId = await getCurrentUser()
+  const userId = await getCurrentUser();
   if (!userId) {
-    redirect('/login')
+    redirect("/login");
   }
 
-  const params = await searchParams
+  const params = await searchParams;
 
-  const query = params.q?.trim() || undefined
-  const genreSlug = params.genre || undefined
-  const format = params.format && VALID_FORMATS.has(params.format)
-    ? (params.format as BookFormat)
-    : undefined
-  const cursor = params.cursor || undefined
+  const query = params.q?.trim() || undefined;
+  const genreSlug = params.genre || undefined;
+  const format =
+    params.format && VALID_FORMATS.has(params.format)
+      ? (params.format as BookFormat)
+      : undefined;
+  const cursor = params.cursor || undefined;
 
   const [result, genres] = await Promise.all([
     getBooks({ query, genreSlug, format, cursor }),
     getGenres(),
-  ])
+  ]);
 
   return (
     <div className="flex gap-8">
@@ -83,10 +89,10 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
         {/* Results header */}
         <div className="mb-4 flex items-center justify-between">
           <Heading level={2}>
-            {query ? `Results for "${query}"` : 'Book Catalog'}
+            {query ? `Results for "${query}"` : "Book Catalog"}
           </Heading>
           <Text className="text-xs">
-            {result.data.length} book{result.data.length !== 1 ? 's' : ''} shown
+            {result.data.length} book{result.data.length !== 1 ? "s" : ""} shown
           </Text>
         </div>
 
@@ -123,19 +129,19 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
         )}
       </main>
     </div>
-  )
+  );
 }
 
 function buildPaginationUrl(params: {
-  q?: string
-  genre?: string
-  format?: string
-  cursor: string
+  q?: string;
+  genre?: string;
+  format?: string;
+  cursor: string;
 }): string {
-  const sp = new URLSearchParams()
-  if (params.q) sp.set('q', params.q)
-  if (params.genre) sp.set('genre', params.genre)
-  if (params.format) sp.set('format', params.format)
-  sp.set('cursor', params.cursor)
-  return `/catalog?${sp.toString()}`
+  const sp = new URLSearchParams();
+  if (params.q) sp.set("q", params.q);
+  if (params.genre) sp.set("genre", params.genre);
+  if (params.format) sp.set("format", params.format);
+  sp.set("cursor", params.cursor);
+  return `/catalog?${sp.toString()}`;
 }

@@ -1,6 +1,6 @@
-import { createServerClient } from '@/lib/supabase/server'
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { createServerClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 /**
  * OAuth Callback — GET /auth/callback
@@ -20,17 +20,17 @@ import type { NextRequest } from 'next/server'
  *   4. User is redirected to the home page
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const { searchParams, origin } = new URL(request.url)
-  const code = searchParams.get('code')
+  const { searchParams, origin } = new URL(request.url);
+  const code = searchParams.get("code");
 
   if (code) {
-    const supabase = await createServerClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const supabase = await createServerClient();
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      return NextResponse.redirect(`${origin}/`)
+      return NextResponse.redirect(`${origin}/`);
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`)
+  return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`);
 }

@@ -13,8 +13,8 @@
  */
 
 export interface DecodedCursor {
-  title: string
-  id: string
+  title: string;
+  id: string;
 }
 
 /**
@@ -22,7 +22,7 @@ export interface DecodedCursor {
  * Pure function — no side effects.
  */
 export function encodeCursor(title: string, id: string): string {
-  return Buffer.from(JSON.stringify({ title, id })).toString('base64url')
+  return Buffer.from(JSON.stringify({ title, id })).toString("base64url");
 }
 
 /**
@@ -32,21 +32,21 @@ export function encodeCursor(title: string, id: string): string {
  */
 export function decodeCursor(cursor: string): DecodedCursor {
   try {
-    const json = Buffer.from(cursor, 'base64url').toString('utf-8')
-    const parsed: unknown = JSON.parse(json)
+    const json = Buffer.from(cursor, "base64url").toString("utf-8");
+    const parsed: unknown = JSON.parse(json);
 
     if (
-      typeof parsed !== 'object' ||
+      typeof parsed !== "object" ||
       parsed === null ||
-      typeof (parsed as Record<string, unknown>).title !== 'string' ||
-      typeof (parsed as Record<string, unknown>).id !== 'string'
+      typeof (parsed as Record<string, unknown>).title !== "string" ||
+      typeof (parsed as Record<string, unknown>).id !== "string"
     ) {
-      throw new Error('Invalid cursor shape')
+      throw new Error("Invalid cursor shape");
     }
 
-    return parsed as DecodedCursor
+    return parsed as DecodedCursor;
   } catch {
-    throw new Error(`Invalid pagination cursor: "${cursor}"`)
+    throw new Error(`Invalid pagination cursor: "${cursor}"`);
   }
 }
 
@@ -60,6 +60,6 @@ export function decodeCursor(cursor: string): DecodedCursor {
  * Pure function — no side effects.
  */
 export function buildCursorFilter(cursor: DecodedCursor): string {
-  const safeTitle = cursor.title.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-  return `title.gt."${safeTitle}",and(title.eq."${safeTitle}",id.gt.${cursor.id})`
+  const safeTitle = cursor.title.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return `title.gt."${safeTitle}",and(title.eq."${safeTitle}",id.gt.${cursor.id})`;
 }

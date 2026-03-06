@@ -62,15 +62,18 @@ Apply SOLID principles to all TypeScript, React, and server-side code:
 Apply the following patterns where they provide clear value. Do not introduce a pattern just to tick a box.
 
 **Creational**
+
 - **Factory Function** — Use factory functions (`createSupabaseServerClient()`, `createSupabaseClientClient()`) to encapsulate Supabase client instantiation. Never use `new` inline.
 - **Builder** (query builder pattern) — Compose Supabase query chains incrementally when filter/sort/pagination options are dynamic, rather than branching on every combination.
 
 **Structural**
+
 - **Adapter** — Wrap Supabase response shapes in adapter functions that map database row types (`Book` from `database.ts`) to view-model types consumed by components. Database schema changes should not require editing component files.
 - **Decorator** (HOC / wrapper pattern) — Use React component wrappers for cross-cutting concerns such as authentication guards or Suspense boundaries, rather than embedding that logic in every page.
 - **Facade** — Expose a clean, domain-oriented API from `lib/` (e.g., `getBookCatalog()`, `submitReview()`) that hides Supabase query details from page components and Server Actions.
 
 **Behavioral**
+
 - **Strategy** — Encapsulate interchangeable algorithms (sort strategies, search strategies, pagination strategies) as functions passed as parameters, rather than hard-coding behavior with conditionals.
 - **Observer** (via React state / Supabase Realtime) — Use Supabase Realtime subscriptions for live data when appropriate; encapsulate subscription setup and teardown in a dedicated custom hook.
 - **Command** (via Server Actions) — Treat each Server Action as a discrete command with a single responsibility. Name them imperatively: `submitReview`, `placeOrder`, `setCurrentUser`.

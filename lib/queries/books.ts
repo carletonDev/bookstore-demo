@@ -1,11 +1,15 @@
-import { createServerClient } from '@/lib/supabase/server'
-import { encodeCursor, decodeCursor, buildCursorFilter } from '@/lib/utils/pagination'
+import { createServerClient } from "@/lib/supabase/server";
+import {
+  encodeCursor,
+  decodeCursor,
+  buildCursorFilter,
+} from "@/lib/utils/pagination";
 import type {
   BookCatalogItemWithRelations,
   BookFormat,
   BookSearchParams,
   PaginatedResult,
-} from '@/types/database'
+} from "@/types/database";
 
 // ---------------------------------------------------------------------------
 // Select fragments (DRY — one definition per query shape)
@@ -44,7 +48,7 @@ const CATALOG_SELECT = `
       slug
     )
   )
-` as const
+` as const;
 
 /**
  * Genre-filtered catalog select: book_genres uses !inner so PostgREST
@@ -80,9 +84,9 @@ const CATALOG_SELECT_GENRE_FILTER = `
       slug
     )
   )
-` as const
+` as const;
 
-const DEFAULT_PAGE_LIMIT = 20
+const DEFAULT_PAGE_LIMIT = 20;
 
 // ---------------------------------------------------------------------------
 // Raw PostgREST response types (before adaptation)
@@ -94,19 +98,21 @@ const DEFAULT_PAGE_LIMIT = 20
  * Kept private — consumers only see BookCatalogItemWithRelations.
  */
 interface RawBookCatalogRow {
-  id: string
-  title: string
-  isbn: string | null
-  publisher_id: string | null
-  price: number
-  formats: string[]
-  cover_image_url: string | null
-  published_at: string | null
-  rating_avg: number | null
-  rating_count: number
-  publisher: { id: string; name: string } | null
-  book_authors: { author: { id: string; first_name: string; last_name: string } }[]
-  book_genres: { genre: { id: string; name: string; slug: string } }[]
+  id: string;
+  title: string;
+  isbn: string | null;
+  publisher_id: string | null;
+  price: number;
+  formats: string[];
+  cover_image_url: string | null;
+  published_at: string | null;
+  rating_avg: number | null;
+  rating_count: number;
+  publisher: { id: string; name: string } | null;
+  book_authors: {
+    author: { id: string; first_name: string; last_name: string };
+  }[];
+  book_genres: { genre: { id: string; name: string; slug: string } }[];
 }
 
 // ---------------------------------------------------------------------------
@@ -115,7 +121,9 @@ interface RawBookCatalogRow {
 // Database schema changes should only require updating this function.
 // ---------------------------------------------------------------------------
 
-function adaptBookCatalogRow(row: RawBookCatalogRow): BookCatalogItemWithRelations {
+function adaptBookCatalogRow(
+  row: RawBookCatalogRow,
+): BookCatalogItemWithRelations {
   return {
     id: row.id,
     title: row.title,
@@ -131,7 +139,7 @@ function adaptBookCatalogRow(row: RawBookCatalogRow): BookCatalogItemWithRelatio
     // Flatten nested join-table shape: [{ author: {...} }] → [{ id, first_name, last_name }]
     authors: row.book_authors.map((ba) => ba.author),
     genres: row.book_genres.map((bg) => bg.genre),
-  }
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -156,78 +164,80 @@ function adaptBookCatalogRow(row: RawBookCatalogRow): BookCatalogItemWithRelatio
 export async function getBooks(
   params: BookSearchParams,
 ): Promise<PaginatedResult<BookCatalogItemWithRelations>> {
-  const supabase = await createServerClient()
+  const supabase = await createServerClient();
 
-  const limit = params.limit ?? DEFAULT_PAGE_LIMIT
+  const limit = params.limit ?? DEFAULT_PAGE_LIMIT;
   // Fetch one extra row to determine whether a next page exists.
-  const fetchLimit = limit + 1
+  const fetchLimit = limit + 1;
 
   // Strategy: choose select fragment based on whether genre filtering is needed.
   // The !inner join in CATALOG_SELECT_GENRE_FILTER excludes books not in the genre.
-  const selectFragment = params.genreSlug ? CATALOG_SELECT_GENRE_FILTER : CATALOG_SELECT
+  const selectFragment = params.genreSlug
+    ? CATALOG_SELECT_GENRE_FILTER
+    : CATALOG_SELECT;
 
   // Builder: start with base query, stable sort by (title ASC, id ASC) matches
   // the idx_books_cursor composite index for O(log n) keyset pagination.
   let query = supabase
-    .from('books')
+    .from("books")
     .select(selectFragment)
-    .order('title', { ascending: true })
-    .order('id', { ascending: true })
-    .limit(fetchLimit)
+    .order("title", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(fetchLimit);
 
   // Full-text search — uses idx_books_search_gin (GIN on search_vector).
   // plainto_tsquery is used (not to_tsquery) so raw user input is safe without escaping.
   if (params.query?.trim()) {
-    query = query.textSearch('search_vector', params.query.trim(), {
-      type: 'plain',
-      config: 'english',
-    })
+    query = query.textSearch("search_vector", params.query.trim(), {
+      type: "plain",
+      config: "english",
+    });
   }
 
   // Genre filter — the !inner join in CATALOG_SELECT_GENRE_FILTER drives the
   // INNER JOIN; this eq narrows to the specific slug within that join.
   if (params.genreSlug) {
-    query = query.eq('book_genres.genres.slug', params.genreSlug)
+    query = query.eq("book_genres.genres.slug", params.genreSlug);
   }
 
   // Format filter — uses idx_books_formats_gin via the @> (contains) operator.
   if (params.format) {
-    query = query.contains('formats', [params.format])
+    query = query.contains("formats", [params.format]);
   }
 
   // Price range filters — uses idx_books_price.
   if (params.minPrice !== undefined) {
-    query = query.gte('price', params.minPrice)
+    query = query.gte("price", params.minPrice);
   }
   if (params.maxPrice !== undefined) {
-    query = query.lte('price', params.maxPrice)
+    query = query.lte("price", params.maxPrice);
   }
 
   // Cursor-based pagination — decodes the opaque cursor and applies the
   // keyset filter: (title > cursorTitle) OR (title = cursorTitle AND id > cursorId)
   // This uses idx_books_cursor in O(log n) regardless of dataset position.
   if (params.cursor) {
-    const decoded = decodeCursor(params.cursor)
-    query = query.or(buildCursorFilter(decoded))
+    const decoded = decodeCursor(params.cursor);
+    query = query.or(buildCursorFilter(decoded));
   }
 
-  const { data, error } = await query
+  const { data, error } = await query;
 
   if (error) {
-    throw new Error(`getBooks query failed: ${error.message}`)
+    throw new Error(`getBooks query failed: ${error.message}`);
   }
 
-  const rows = (data ?? []) as unknown as RawBookCatalogRow[]
-  const hasMore = rows.length > limit
-  const pageRows = hasMore ? rows.slice(0, limit) : rows
+  const rows = (data ?? []) as unknown as RawBookCatalogRow[];
+  const hasMore = rows.length > limit;
+  const pageRows = hasMore ? rows.slice(0, limit) : rows;
 
-  const lastRow = pageRows.at(-1)
+  const lastRow = pageRows.at(-1);
   const nextCursor =
-    hasMore && lastRow ? encodeCursor(lastRow.title, lastRow.id) : null
+    hasMore && lastRow ? encodeCursor(lastRow.title, lastRow.id) : null;
 
   return {
     data: pageRows.map(adaptBookCatalogRow),
     nextCursor,
     hasMore,
-  }
+  };
 }

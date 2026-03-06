@@ -1,5 +1,5 @@
-import { createServerClient as createSupabaseServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { createServerClient as createSupabaseServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
 /**
  * Factory: Server-side Supabase client.
@@ -11,7 +11,7 @@ import { cookies } from 'next/headers'
  * Pattern: Factory Function (Creational) — never instantiate inline.
  */
 export async function createServerClient() {
-  const cookieStore = await cookies()
+  const cookieStore = await cookies();
 
   return createSupabaseServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,7 +21,7 @@ export async function createServerClient() {
         // PKCE is the recommended OAuth flow for Next.js App Router.
         // The authorization code is exchanged server-side in app/auth/callback/route.ts,
         // keeping tokens out of the URL fragment and safe from referrer leakage.
-        flowType: 'pkce',
+        flowType: "pkce",
         // Session URL detection is disabled — our callback route handles the
         // code exchange explicitly. Allowing auto-detection would conflict with
         // the proxy-based session architecture.
@@ -29,13 +29,13 @@ export async function createServerClient() {
       },
       cookies: {
         getAll() {
-          return cookieStore.getAll()
+          return cookieStore.getAll();
         },
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options)
-            })
+              cookieStore.set(name, value, options);
+            });
           } catch {
             // Called from a Server Component where cookies are read-only.
             // Token refresh is handled by the Session Synchronizer at
@@ -44,5 +44,5 @@ export async function createServerClient() {
         },
       },
     },
-  )
+  );
 }

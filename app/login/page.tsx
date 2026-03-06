@@ -1,27 +1,28 @@
-import { Heading } from '@/components/heading'
-import { Text } from '@/components/text'
-import { Button } from '@/components/button'
-import { Alert } from '@/components/alert'
-import { signInWithGoogle } from '@/lib/actions/auth'
+import { Heading } from "@/components/heading";
+import { Text } from "@/components/text";
+import { Button } from "@/components/button";
+import { Alert } from "@/components/alert";
+import { signInWithGoogle } from "@/lib/actions/auth";
 
 interface LoginPageProps {
   // searchParams is a Promise in Next.js 16 (async request APIs)
-  searchParams: Promise<{ error?: string }>
+  searchParams: Promise<{ error?: string }>;
 }
 
 const ERROR_MESSAGES: Record<string, string> = {
-  auth_callback_failed: 'Authentication failed. Please try again.',
-  oauth_init_failed: 'Could not connect to Google. Please try again.',
-}
+  auth_callback_failed: "Authentication failed. Please try again.",
+  oauth_init_failed: "Could not connect to Google. Please try again.",
+};
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const { error } = await searchParams
-  const errorMessage = error ? (ERROR_MESSAGES[error] ?? 'An unexpected error occurred.') : null
+  const { error } = await searchParams;
+  const errorMessage = error
+    ? (ERROR_MESSAGES[error] ?? "An unexpected error occurred.")
+    : null;
 
   return (
     <main className="min-h-screen bg-zinc-50 dark:bg-zinc-900 flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-8">
-
         {/* Wordmark — Catalyst Heading + Text */}
         <div className="text-center space-y-1">
           <Heading level={1}>Bookstore</Heading>
@@ -30,11 +31,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
         {/* Card */}
         <div className="rounded-xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-800 dark:ring-white/10 p-8 space-y-6">
-
           {/* Error banner — Catalyst Alert, destructive variant */}
-          {errorMessage && (
-            <Alert variant="destructive">{errorMessage}</Alert>
-          )}
+          {errorMessage && <Alert variant="destructive">{errorMessage}</Alert>}
 
           {/* Google sign-in — Catalyst Button (outline), form action triggers Server Action */}
           <form action={signInWithGoogle}>
@@ -48,20 +46,15 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <Text className="text-center text-xs">
             By signing in you agree to our terms of service.
           </Text>
-
         </div>
       </div>
     </main>
-  )
+  );
 }
 
 function GoogleIcon() {
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className="h-5 w-5 shrink-0"
-    >
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0">
       <path
         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
         fill="#4285F4"
@@ -79,5 +72,5 @@ function GoogleIcon() {
         fill="#EA4335"
       />
     </svg>
-  )
+  );
 }
