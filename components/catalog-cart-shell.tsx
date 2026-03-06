@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { Button } from "@/components/button";
 import { Badge } from "@/components/badge";
 import { CartDrawer } from "@/components/cart-drawer";
@@ -26,7 +26,8 @@ export function CatalogCartShell(): React.ReactElement {
   const totalItems = useCartStore((s) => s.totalItems);
   const count = totalItems();
 
-  const loadBookInfo = useCallback(async () => {
+  async function handleOpen(): Promise<void> {
+    setOpen(true);
     const bookIds = [...new Set(items.map((i) => i.bookId))];
     if (bookIds.length === 0) {
       setBookInfo(new Map());
@@ -38,20 +39,14 @@ export function CatalogCartShell(): React.ReactElement {
       map.set(entry.id, { title: entry.title, price: entry.price });
     }
     setBookInfo(map);
-  }, [items]);
-
-  useEffect(() => {
-    if (open) {
-      loadBookInfo();
-    }
-  }, [open, loadBookInfo]);
+  }
 
   return (
     <>
       <Button
         outline
         className="relative !px-3 !py-1.5 text-xs"
-        onClick={() => setOpen(true)}
+        onClick={handleOpen}
         aria-label="Open shopping cart"
       >
         <svg
