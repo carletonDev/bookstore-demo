@@ -18,9 +18,9 @@ import type { BookInfoEntry } from "@/lib/actions/cart-info";
  */
 export function CatalogCartShell(): React.ReactElement {
   const [open, setOpen] = useState(false);
-  const [bookInfo, setBookInfo] = useState<Map<string, { title: string; price: number }>>(
-    new Map(),
-  );
+  const [bookInfo, setBookInfo] = useState<
+    Map<string, { title: string; price: number }>
+  >(new Map());
 
   const items = useCartStore((s) => s.items);
   const totalItems = useCartStore((s) => s.totalItems);
@@ -70,7 +70,11 @@ export function CatalogCartShell(): React.ReactElement {
         )}
       </Button>
 
-      <CartDrawer open={open} onClose={() => setOpen(false)} bookInfo={bookInfo} />
+      <CartDrawer
+        open={open}
+        onClose={() => setOpen(false)}
+        bookInfo={bookInfo}
+      />
     </>
   );
 }

@@ -557,16 +557,16 @@ All four CI quality gates pass locally:
 
 ### Seed volume summary
 
-| Table         | Target rows |
-|---------------|-------------|
-| publishers    | 10          |
-| authors       | 50          |
-| genres        | 12          |
-| seed users    | 20          |
-| books         | 210         |
-| book_authors  | ~260        |
-| book_genres   | ~420        |
-| reviews       | ~600        |
+| Table        | Target rows |
+| ------------ | ----------- |
+| publishers   | 10          |
+| authors      | 50          |
+| genres       | 12          |
+| seed users   | 20          |
+| books        | 210         |
+| book_authors | ~260        |
+| book_genres  | ~420        |
+| reviews      | ~600        |
 
 ### Usage
 
@@ -581,7 +581,7 @@ npm run seed      # runs lib/db/seed.ts against the project in .env.local
 
 ### Prompt (User)
 
-> Fix the double-click auth bug. Before signInWithOAuth, call signOut() to clear stale sessions. In proxy.ts, clear sb-* cookies when an auth error is detected in the URL. In login/page.tsx, clear the error param from the URL after it's been displayed.
+> Fix the double-click auth bug. Before signInWithOAuth, call signOut() to clear stale sessions. In proxy.ts, clear sb-\* cookies when an auth error is detected in the URL. In login/page.tsx, clear the error param from the URL after it's been displayed.
 
 ### Root Cause
 
@@ -617,17 +617,17 @@ The "first click fails, second click works" bug has three contributing causes:
 
 **Policy matrix implemented:**
 
-| Table         | anon SELECT | auth SELECT | auth INSERT       | auth UPDATE  | auth DELETE  |
-|---------------|:-----------:|:-----------:|:-----------------:|:------------:|:------------:|
-| publishers    | ✓           | ✓           |                   |              |              |
-| authors       | ✓           | ✓           |                   |              |              |
-| genres        | ✓           | ✓           |                   |              |              |
-| books         | ✓           | ✓           |                   |              |              |
-| book_authors  | ✓           | ✓           |                   |              |              |
-| book_genres   | ✓           | ✓           |                   |              |              |
-| reviews       | ✓           | ✓           | own row           | own row      | own row      |
-| orders        |             | ✓           | own row           |              |              |
-| order_items   |             | ✓           | via parent order  |              |              |
+| Table        | anon SELECT | auth SELECT |   auth INSERT    | auth UPDATE | auth DELETE |
+| ------------ | :---------: | :---------: | :--------------: | :---------: | :---------: |
+| publishers   |      ✓      |      ✓      |                  |             |             |
+| authors      |      ✓      |      ✓      |                  |             |             |
+| genres       |      ✓      |      ✓      |                  |             |             |
+| books        |      ✓      |      ✓      |                  |             |             |
+| book_authors |      ✓      |      ✓      |                  |             |             |
+| book_genres  |      ✓      |      ✓      |                  |             |             |
+| reviews      |      ✓      |      ✓      |     own row      |   own row   |   own row   |
+| orders       |             |      ✓      |     own row      |             |             |
+| order_items  |             |      ✓      | via parent order |             |             |
 
 **Design decisions:**
 
