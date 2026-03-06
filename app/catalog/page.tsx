@@ -126,10 +126,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
               <div key={book.id} className="space-y-2">
                 <BookCard book={book} />
                 <div className="flex items-center justify-between gap-2">
-                  <AddToCartButton
-                    bookId={book.id}
-                    formats={book.formats}
-                  />
+                  <AddToCartButton bookId={book.id} formats={book.formats} />
                   <ReviewDialog bookId={book.id} bookTitle={book.title} />
                 </div>
               </div>
