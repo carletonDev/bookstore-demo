@@ -7,6 +7,7 @@ import { CatalogSidebar } from '@/components/catalog-sidebar'
 import { ReviewDialog } from '@/components/review-dialog'
 import { getBooks } from '@/lib/queries/books'
 import { getGenres } from '@/lib/queries/genres'
+import { getUserStats } from '@/lib/queries/userStats'
 import { getCurrentUser } from '@/lib/utils/currentUser'
 import type { BookFormat } from '@/types/database'
 import Link from 'next/link'
@@ -45,9 +46,10 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
     : undefined
   const cursor = params.cursor || undefined
 
-  const [result, genres] = await Promise.all([
+  const [result, genres, stats] = await Promise.all([
     getBooks({ query, genreSlug, format, cursor }),
     getGenres(),
+    getUserStats(userId),
   ])
 
   return (
@@ -64,6 +66,22 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
 
       {/* Main content */}
       <main className="min-w-0 flex-1">
+        {/* Quick Stats */}
+        <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-2">
+          <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
+            <Text className="text-xs">Books Purchased</Text>
+            <p className="mt-1 text-2xl font-semibold text-zinc-950 dark:text-white">
+              {stats.booksPurchased}
+            </p>
+          </div>
+          <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
+            <Text className="text-xs">Recent Reviews</Text>
+            <p className="mt-1 text-2xl font-semibold text-zinc-950 dark:text-white">
+              {stats.recentReviewCount}
+            </p>
+          </div>
+        </div>
+
         {/* Search bar */}
         <form action="/catalog" method="get" className="mb-6">
           {genreSlug && <input type="hidden" name="genre" value={genreSlug} />}

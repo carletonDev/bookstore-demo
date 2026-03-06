@@ -463,3 +463,21 @@ $$;
 - **`app/catalog/layout.tsx`** — Catalyst SidebarLayout shell. Sticky top bar with Bookstore heading and Sign Out button. Max-width container for main content area.
 - **`app/catalog/page.tsx`** — Server Component at `/catalog`. Handles `q` (search), `genre` (filter), `format` (filter), and `cursor` (pagination) URL parameters. Validates format against allowed values. Fetches books and genres in parallel via `Promise.all`. Renders search bar, BookCard grid, pagination link, and ReviewDialog per book. Authorization: redirects to `/login` if `getCurrentUser()` returns null.
 - **`proxy.ts`** — Added authorization guard: unauthenticated requests to `/catalog` are redirected to `/login` before reaching the page. Defense in depth — the page component also checks `getCurrentUser()`. Destructured `getUser()` result to access `user` object for the check.
+
+---
+
+## Implementation: Authenticated Dashboard and Redirect Logic
+
+### Prompt (User)
+
+> Implement the Authenticated Dashboard experience. Update auth callback to redirect to /catalog. Add a Catalyst SidebarLayout with welcome message, Quick Stats bar, navigation, Sign Out in sidebar, and a public landing page with conditional CTA.
+
+### Key Decisions / What Changed
+
+- **`app/auth/callback/route.ts`** — Changed post-login redirect from `${origin}/` to `${origin}/catalog`. After successful OAuth code exchange, users land directly in The Library instead of the root page.
+- **`lib/utils/currentUserProfile.ts`** — New utility. Exports `getCurrentUserProfile()` which returns `{ id, fullName, email, avatarUrl }` by reading Google OAuth metadata from `supabase.auth.getUser()`. Extracts `full_name` / `name` and `avatar_url` / `picture` from `user_metadata`. Returns null when unauthenticated. Follows the same Factory pattern as `getCurrentUser()`.
+- **`lib/queries/userStats.ts`** — New Facade. Exports `getUserStats(userId)` returning `{ booksPurchased, recentReviewCount }`. Queries `order_items` joined to `orders` for purchase totals, and `reviews` with `count: 'exact'` for review count. Both queries run in parallel via `Promise.all`.
+- **`app/catalog/layout.tsx`** — Rewritten to Catalyst SidebarLayout. Now an async Server Component that fetches `getCurrentUserProfile()`. Left sidebar (hidden on mobile) with brand heading ("The Codex"), nav links (The Library, Order History, Reports), and Sign Out button at the bottom. Top bar shows "Welcome, [Name]" using the Google profile `fullName`. Mobile-responsive: Sign Out and brand shown in top bar on small screens.
+- **`app/catalog/page.tsx`** — Added Quick Stats bar at the top of the main content area. Two stat cards: "Books Purchased" and "Recent Reviews" fetched via `getUserStats()`. Stats query runs in parallel with `getBooks()` and `getGenres()` via `Promise.all`.
+- **`app/page.tsx`** — Replaced boilerplate Create Next App content with a Codex landing page. Checks `getCurrentUser()` to determine auth state. Authenticated users see "Enter The Library" CTA linking to `/catalog`. Unauthenticated users see "Get Started" CTA linking to `/login`.
+- **`lib/actions/auth.ts`** — Changed `signOut()` redirect from `/login` to `/` so users land on the public landing page after signing out.
