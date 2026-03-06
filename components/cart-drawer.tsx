@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   SlideOver,
   SlideOverPanel,
@@ -12,46 +13,40 @@ import {
   DescriptionDetails,
 } from "@/components/description-list";
 import { Button } from "@/components/button";
-import { useCartStore, type CartItem } from "@/stores/cart";
+import { useCartStore } from "@/lib/store/useCart";
 import { processCheckout } from "@/lib/actions/checkout";
 
 type CartDrawerProps = {
   open: boolean;
   onClose: () => void;
-  /** Map of bookId → { title, price } for display. Passed from the parent
-   *  that has access to book data. */
-  bookInfo: Map<string, { title: string; price: number }>;
 };
 
 function formatPrice(amount: number): string {
   return `$${amount.toFixed(2)}`;
 }
 
-function formatLabel(item: CartItem): string {
-  return `${item.format} × ${item.quantity}`;
-}
-
 /**
  * CartDrawer — Catalyst slide-over panel showing the shopping cart.
  *
- * Uses the Dialog (slide-over) for the panel and DescriptionList for
- * the order summary. Checkout triggers the processCheckout Server Action
- * which re-fetches live prices from the database.
+ * Cart items carry their own title and price from the useCart store,
+ * removing the need for an external bookInfo prop.
+ * Checkout triggers processCheckout which re-fetches live prices,
+ * then redirects to /orders/success on success.
  */
-export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
+export function CartDrawer({ open, onClose }: CartDrawerProps) {
   const items = useCartStore((s) => s.items);
   const removeItem = useCartStore((s) => s.removeItem);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const clearCart = useCartStore((s) => s.clearCart);
+  const router = useRouter();
 
   const [isPending, startTransition] = useTransition();
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const [orderId, setOrderId] = useState<string | null>(null);
 
-  const subtotal = items.reduce((sum, item) => {
-    const info = bookInfo.get(item.bookId);
-    return sum + (info ? info.price * item.quantity : 0);
-  }, 0);
+  const subtotal = items.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0,
+  );
 
   const handleCheckout = useCallback(() => {
     setCheckoutError(null);
@@ -65,13 +60,14 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
       );
 
       if (result.success) {
-        setOrderId(result.orderId ?? null);
         clearCart();
+        onClose();
+        router.push(`/orders/success?orderId=${result.orderId}`);
       } else {
         setCheckoutError(result.error ?? "Checkout failed.");
       }
     });
-  }, [items, clearCart]);
+  }, [items, clearCart, onClose, router]);
 
   return (
     <SlideOver open={open} onClose={onClose}>
@@ -85,18 +81,6 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
           </Button>
         </div>
 
-        {/* Success message */}
-        {orderId && (
-          <div className="mt-4 rounded-lg bg-green-50 p-4 ring-1 ring-inset ring-green-200 dark:bg-green-950/30 dark:ring-green-800">
-            <p className="text-sm/6 font-medium text-green-800 dark:text-green-300">
-              Order placed successfully!
-            </p>
-            <p className="mt-1 text-xs text-green-700 dark:text-green-400">
-              Order ID: {orderId}
-            </p>
-          </div>
-        )}
-
         {/* Error message */}
         {checkoutError && (
           <div className="mt-4 rounded-lg bg-red-50 p-4 ring-1 ring-inset ring-red-200 dark:bg-red-950/30 dark:ring-red-800">
@@ -108,82 +92,76 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
 
         {/* Cart items */}
         <div className="mt-6 flex-1">
-          {items.length === 0 && !orderId ? (
+          {items.length === 0 ? (
             <p className="text-sm/6 text-zinc-500 dark:text-zinc-400">
               Your cart is empty.
             </p>
           ) : (
             <ul className="divide-y divide-zinc-200 dark:divide-zinc-700">
-              {items.map((item) => {
-                const info = bookInfo.get(item.bookId);
-                const title = info?.title ?? "Unknown Book";
-                const price = info?.price ?? 0;
-
-                return (
-                  <li
-                    key={`${item.bookId}-${item.format}`}
-                    className="py-4 first:pt-0"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm/6 font-medium text-zinc-950 dark:text-white">
-                          {title}
-                        </p>
-                        <p className="text-sm/6 text-zinc-500 dark:text-zinc-400">
-                          {item.format}
-                        </p>
-                      </div>
-                      <p className="text-sm/6 font-medium text-zinc-950 dark:text-white">
-                        {formatPrice(price * item.quantity)}
+              {items.map((item) => (
+                <li
+                  key={`${item.bookId}-${item.format}`}
+                  className="py-4 first:pt-0"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm/6 font-medium text-zinc-950 dark:text-white">
+                        {item.title}
+                      </p>
+                      <p className="text-sm/6 text-zinc-500 dark:text-zinc-400">
+                        {item.format}
                       </p>
                     </div>
+                    <p className="text-sm/6 font-medium text-zinc-950 dark:text-white">
+                      {formatPrice(item.price * item.quantity)}
+                    </p>
+                  </div>
 
-                    <div className="mt-2 flex items-center gap-2">
-                      <Button
-                        plain
-                        className="!px-2 !py-1 text-xs"
-                        onClick={() =>
-                          item.quantity > 1
-                            ? updateQuantity(
-                                item.bookId,
-                                item.format,
-                                item.quantity - 1,
-                              )
-                            : removeItem(item.bookId, item.format)
-                        }
-                        aria-label={`Decrease quantity of ${title}`}
-                      >
-                        −
-                      </Button>
-                      <span className="min-w-[2rem] text-center text-sm/6 text-zinc-950 dark:text-white">
-                        {item.quantity}
-                      </span>
-                      <Button
-                        plain
-                        className="!px-2 !py-1 text-xs"
-                        onClick={() =>
-                          updateQuantity(
-                            item.bookId,
-                            item.format,
-                            item.quantity + 1,
-                          )
-                        }
-                        aria-label={`Increase quantity of ${title}`}
-                      >
-                        +
-                      </Button>
-                      <Button
-                        plain
-                        className="ml-auto text-xs text-red-600 dark:text-red-400"
-                        onClick={() => removeItem(item.bookId, item.format)}
-                        aria-label={`Remove ${title} from cart`}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  </li>
-                );
-              })}
+                  <div className="mt-2 flex items-center gap-2">
+                    <Button
+                      plain
+                      className="!px-2 !py-1 text-xs"
+                      onClick={() =>
+                        item.quantity > 1
+                          ? updateQuantity(
+                              item.bookId,
+                              item.format,
+                              item.quantity - 1,
+                            )
+                          : removeItem(item.bookId, item.format)
+                      }
+                      aria-label={`Decrease quantity of ${item.title}`}
+                    >
+                      -
+                    </Button>
+                    <span className="min-w-[2rem] text-center text-sm/6 text-zinc-950 dark:text-white">
+                      {item.quantity}
+                    </span>
+                    <Button
+                      plain
+                      className="!px-2 !py-1 text-xs"
+                      onClick={() =>
+                        updateQuantity(
+                          item.bookId,
+                          item.format,
+                          item.quantity + 1,
+                        )
+                      }
+                      aria-label={`Increase quantity of ${item.title}`}
+                    >
+                      +
+                    </Button>
+                    <Button
+                      plain
+                      className="ml-auto text-xs text-red-600 dark:text-red-400"
+                      onClick={() => removeItem(item.bookId, item.format)}
+                      aria-label={`Remove ${item.title} from cart`}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </li>
+              ))}
             </ul>
           )}
         </div>
@@ -192,23 +170,18 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
         {items.length > 0 && (
           <div className="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-700">
             <DescriptionList>
-              {items.map((item) => {
-                const info = bookInfo.get(item.bookId);
-                return (
-                  <div
-                    key={`${item.bookId}-${item.format}-summary`}
-                    className="flex items-center justify-between py-2"
-                  >
-                    <DescriptionTerm>
-                      {info?.title ?? "Unknown"}
-                    </DescriptionTerm>
-                    <DescriptionDetails>
-                      {formatLabel(item)} ={" "}
-                      {formatPrice((info?.price ?? 0) * item.quantity)}
-                    </DescriptionDetails>
-                  </div>
-                );
-              })}
+              {items.map((item) => (
+                <div
+                  key={`${item.bookId}-${item.format}-summary`}
+                  className="flex items-center justify-between py-2"
+                >
+                  <DescriptionTerm>{item.title}</DescriptionTerm>
+                  <DescriptionDetails>
+                    {item.format} x {item.quantity} ={" "}
+                    {formatPrice(item.price * item.quantity)}
+                  </DescriptionDetails>
+                </div>
+              ))}
 
               <div className="flex items-center justify-between py-3">
                 <DescriptionTerm className="font-semibold text-zinc-950 dark:text-white">
@@ -226,7 +199,7 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
                 onClick={handleCheckout}
                 disabled={isPending}
               >
-                {isPending ? "Processing…" : "Checkout"}
+                {isPending ? "Processing..." : "Checkout"}
               </Button>
             </div>
           </div>

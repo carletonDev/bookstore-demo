@@ -526,3 +526,35 @@ All four CI quality gates pass locally:
 - `npx tsc --noEmit` — 0 errors
 - `npx prettier --check .` — all files formatted
 - `npm run test` — 19/19 tests pass (672ms)
+
+---
+
+## Implementation: Cart, Checkout, and Historical Price Snapshots
+
+### Prompt (User)
+
+> Implement the Cart and Checkout system for The Codex. Cart Management with zustand store at lib/store/useCart.ts, CartDrawer using SlideOver + DescriptionList, processCheckout Server Action with live price integrity check and purchased_price snapshotting, order success page, order history page with Table, Add to Cart on BookCard, and Cart button with counter badge in Navbar.
+
+### Key Decisions / What Changed
+
+- **`lib/store/useCart.ts`** — Created new zustand store with `CartItem` carrying `bookId`, `title`, `price`, `format`, `quantity`. Persisted to localStorage (key: `codex-cart`). Replaces the old `stores/cart.ts` which lacked `title` and `price`, requiring an external `bookInfo` Map prop. Added `subtotal()` derived getter.
+
+- **`components/cart-drawer.tsx`** — Refactored to use `lib/store/useCart` instead of `stores/cart`. Removed `bookInfo` prop dependency (cart items are now self-contained with title/price). On successful checkout, clears cart, closes drawer, and redirects to `/orders/success?orderId=...` via `useRouter().push()`. Removed in-drawer success message in favor of dedicated success page.
+
+- **`components/add-to-cart-button.tsx`** — New client component. Accepts `bookId`, `title`, `price`, `formats`. When multiple formats are available, renders a `<select>` dropdown for format choice. Single-format books add directly with one click. Uses `useCartStore.addItem()`.
+
+- **`components/book-card.tsx`** — Added `AddToCartButton` below the price/genre row. Passes `book.id`, `book.title`, `book.price`, `book.formats` as props.
+
+- **`components/cart-button.tsx`** — New client component for the Navbar. Shows a cart icon with "Cart" text and a red `Badge` counter (from `totalItems()`). Manages the CartDrawer open/close state internally.
+
+- **`app/catalog/layout.tsx`** — Imported and placed `CartButton` in the top header bar next to the welcome message and sign-out button.
+
+- **`app/orders/success/page.tsx`** — New success page at `/orders/success`. Uses Catalyst `Alert` (variant: `info`) for the confirmation message, displays truncated order ID, and provides links back to `/catalog` and `/orders`.
+
+- **`app/orders/page.tsx`** — Refactored from DescriptionList layout to Catalyst `Table` component. Each order card now shows a proper table with columns: Book, Qty, Price at Purchase, Line Total. Uses `Badge` for order status. **Senior Requirement**: Displays `purchased_price` from the order_items snapshot, not the live book price.
+
+- **`lib/actions/checkout.ts`** — Already existed with full integrity check (re-fetches live prices from `books` table via `getBookPrices`, snapshots into `order_items.purchased_price`). No changes needed.
+
+- **`lib/queries/orders.ts`** — Already existed with `getOrderHistory` facade selecting `purchased_price` from order_items. No changes needed.
+
+- **Architecture**: Cart state is client-only (zustand + localStorage). Server Action `processCheckout` is the trust boundary — it re-validates prices at execution time regardless of what the client stored. This ensures price integrity even if the client-side cart has stale prices.
