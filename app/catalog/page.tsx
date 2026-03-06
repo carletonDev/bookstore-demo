@@ -3,6 +3,7 @@ import { Heading } from "@/components/heading";
 import { Text } from "@/components/text";
 import { Button } from "@/components/button";
 import { BookCard } from "@/components/book-card";
+import { AddToCartButton } from "@/components/add-to-cart-button";
 import { CatalogSidebar } from "@/components/catalog-sidebar";
 import { ReviewDialog } from "@/components/review-dialog";
 import { getBooks } from "@/lib/queries/books";
@@ -124,7 +125,13 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
             {result.data.map((book) => (
               <div key={book.id} className="space-y-2">
                 <BookCard book={book} />
-                <ReviewDialog bookId={book.id} bookTitle={book.title} />
+                <div className="flex items-center justify-between gap-2">
+                  <AddToCartButton
+                    bookId={book.id}
+                    formats={book.formats}
+                  />
+                  <ReviewDialog bookId={book.id} bookTitle={book.title} />
+                </div>
               </div>
             ))}
           </div>

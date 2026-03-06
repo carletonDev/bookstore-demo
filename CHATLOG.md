@@ -635,3 +635,22 @@ The "first click fails, second click works" bug has three contributing causes:
 - **Reviews** — `USING` + `WITH CHECK` on `auth.uid() = user_id` for UPDATE prevents a user from re-assigning a review to another user. The table-level `UNIQUE (book_id, user_id)` enforces one-review-per-book at the DB layer; the INSERT policy enforces it at the auth layer.
 - **Orders** — No UPDATE or DELETE policies. Status transitions (`pending → confirmed → shipped`) are service-role operations only and must never be accessible to the client.
 - **order_items** — No `user_id` column; ownership is derived via a correlated subquery against `orders.user_id`. Both SELECT and INSERT policies use `EXISTS (SELECT 1 FROM orders WHERE orders.id = order_items.order_id AND orders.user_id = auth.uid())`. No UPDATE or DELETE — `purchased_price` is a historical price snapshot and is immutable by design.
+
+---
+
+## Implementation: Restoring Cart Integration and Purchase Flow
+
+### Prompt (User)
+
+> Re-integrate the Cart system into the new 'The Codex' architecture. Create AddToCartButton, integrate into BookCard, add Cart trigger with badge to layout, render CartDrawer globally, ensure checkout redirects to /orders, and maintain dark zinc theme.
+
+### Key Decisions / What Changed
+
+- **Created `components/add-to-cart-button.tsx`** — Client Component using `useCartStore.addItem`. Renders a format selector (when multiple formats exist) and a solid Catalyst Button (small size). Shows brief "Added!" confirmation feedback.
+- **Integrated AddToCartButton into catalog page** — Placed below each BookCard in `app/catalog/page.tsx` alongside the existing ReviewDialog. BookCard remains a Server Component; the button is a sibling client component in the grid item wrapper.
+- **Created `components/catalog-cart-shell.tsx`** — Client Component that encapsulates the cart trigger button (outline Catalyst Button with cart icon), a dynamic Badge showing `totalItems` from Zustand, and the CartDrawer slide-over. Fetches book info via a new server action when the drawer opens.
+- **Created `lib/actions/cart-info.ts`** — Server Action `fetchCartBookInfo` that fetches title/price for cart book IDs using the existing `getBookPrices` facade. Returns a serialisable array (Maps are not serialisable across the server action wire).
+- **Updated `app/catalog/layout.tsx`** — Added `CatalogCartShell` in two places: the desktop sidebar (above Sign Out) and the mobile top bar (next to Sign Out). The CartDrawer is rendered inside the shell so it can be toggled from anywhere in the catalog.
+- **Updated `components/cart-drawer.tsx`** — On successful checkout, calls `clearCart()`, closes the drawer via `onClose()`, and redirects to `/orders` using `next/navigation`'s `useRouter().push()`. Removed the inline success message (orderId state) since the user is redirected instead.
+- **Dark zinc theme consistency** — All new and modified components use the existing zinc-900/950 dark palette. The SlideOverPanel already renders with `dark:bg-zinc-900`. CartDrawer text uses `dark:text-white` / `dark:text-zinc-400`. No theme deviations introduced.
+- **Architectural patterns preserved** — Facade pattern (server action wraps `getBookPrices`), Command pattern (checkout as server action), Zustand for client state, Interface Segregation (AddToCartButton accepts only `bookId` + `formats`).
