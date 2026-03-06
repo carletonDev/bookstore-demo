@@ -29,7 +29,10 @@ function formatDate(iso: string): string {
   });
 }
 
-const STATUS_COLORS: Record<OrderStatus, "zinc" | "green" | "amber" | "blue" | "red"> = {
+const STATUS_COLORS: Record<
+  OrderStatus,
+  "zinc" | "green" | "amber" | "blue" | "red"
+> = {
   pending: "amber",
   confirmed: "blue",
   shipped: "purple" as "blue",
@@ -78,9 +81,7 @@ function OrderCard({ order }: { order: OrderWithItems }) {
         </Badge>
       </div>
 
-      <Text className="text-xs">
-        {formatDate(order.created_at)}
-      </Text>
+      <Text className="text-xs">{formatDate(order.created_at)}</Text>
 
       <Table>
         <TableHead>

@@ -6,20 +6,21 @@ import type { BookFormat } from "@/types/database";
 
 export interface CartItem {
   bookId: string;
-  title: string;
-  price: number;
   format: BookFormat;
   quantity: number;
 }
 
 interface CartState {
   items: CartItem[];
-  addItem: (item: Pick<CartItem, "bookId" | "title" | "price" | "format">) => void;
+  addItem: (bookId: string, format: BookFormat) => void;
   removeItem: (bookId: string, format: BookFormat) => void;
-  updateQuantity: (bookId: string, format: BookFormat, quantity: number) => void;
+  updateQuantity: (
+    bookId: string,
+    format: BookFormat,
+    quantity: number,
+  ) => void;
   clearCart: () => void;
   totalItems: () => number;
-  subtotal: () => number;
 }
 
 function findIndex(
@@ -37,9 +38,9 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
 
-      addItem(input) {
+      addItem(bookId: string, format: BookFormat) {
         set((state) => {
-          const idx = findIndex(state.items, input.bookId, input.format);
+          const idx = findIndex(state.items, bookId, format);
           if (idx >= 0) {
             const updated = [...state.items];
             updated[idx] = {
@@ -48,18 +49,7 @@ export const useCartStore = create<CartState>()(
             };
             return { items: updated };
           }
-          return {
-            items: [
-              ...state.items,
-              {
-                bookId: input.bookId,
-                title: input.title,
-                price: input.price,
-                format: input.format,
-                quantity: 1,
-              },
-            ],
-          };
+          return { items: [...state.items, { bookId, format, quantity: 1 }] };
         });
       },
 
@@ -88,13 +78,6 @@ export const useCartStore = create<CartState>()(
 
       totalItems() {
         return get().items.reduce((sum, item) => sum + item.quantity, 0);
-      },
-
-      subtotal() {
-        return get().items.reduce(
-          (sum, item) => sum + item.price * item.quantity,
-          0,
-        );
       },
     }),
     {

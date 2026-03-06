@@ -7,28 +7,21 @@ import type { BookFormat } from "@/types/database";
 
 interface AddToCartButtonProps {
   bookId: string;
-  title: string;
-  price: number;
   formats: BookFormat[];
 }
 
 /**
  * AddToCartButton — client component that adds a book to the cart.
  *
- * When a book has multiple formats, renders a format selector dropdown.
- * When a single format is available, adds directly with one click.
+ * Only passes bookId to the cart store. Title/price metadata is fetched
+ * from the database on the server (single source of truth).
  */
-export function AddToCartButton({
-  bookId,
-  title,
-  price,
-  formats,
-}: AddToCartButtonProps) {
+export function AddToCartButton({ bookId, formats }: AddToCartButtonProps) {
   const addItem = useCartStore((s) => s.addItem);
   const [selectedFormat, setSelectedFormat] = useState<BookFormat>(formats[0]);
 
   function handleAdd(): void {
-    addItem({ bookId, title, price, format: selectedFormat });
+    addItem(bookId, selectedFormat);
   }
 
   return (

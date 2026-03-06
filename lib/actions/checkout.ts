@@ -58,14 +58,16 @@ export async function processCheckout(
   const bookIds = [...new Set(items.map((item) => item.bookId))];
   const priceMap = await getBookPrices(bookIds);
 
-  // Verify all books exist
-  for (const bookId of bookIds) {
-    if (!priceMap.has(bookId)) {
-      return {
-        success: false,
-        error: `Book not found: ${bookId}. It may have been removed.`,
-      };
-    }
+  // Verify all books exist — log missing IDs for debugging (RLS vs missing row)
+  const missingIds = bookIds.filter((id) => !priceMap.has(id));
+  if (missingIds.length > 0) {
+    console.error(
+      `[processCheckout] Books not found in database. Requested: ${bookIds.length}, Found: ${priceMap.size}. Missing IDs: ${missingIds.join(", ")}`,
+    );
+    return {
+      success: false,
+      error: `${missingIds.length} book(s) not found. They may have been removed or are inaccessible.`,
+    };
   }
 
   // ── Compute total from live prices ──

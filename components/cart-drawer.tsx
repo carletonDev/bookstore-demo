@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition, useState, useCallback } from "react";
+import { useTransition, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   SlideOver,
@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/button";
 import { useCartStore } from "@/lib/store/useCart";
 import { processCheckout } from "@/lib/actions/checkout";
+import { fetchCartBookInfo, type CartBookInfo } from "@/lib/actions/cart";
 
 type CartDrawerProps = {
   open: boolean;
@@ -28,10 +29,9 @@ function formatPrice(amount: number): string {
 /**
  * CartDrawer — Catalyst slide-over panel showing the shopping cart.
  *
- * Cart items carry their own title and price from the useCart store,
- * removing the need for an external bookInfo prop.
- * Checkout triggers processCheckout which re-fetches live prices,
- * then redirects to /orders/success on success.
+ * Cart store holds only bookId/format/quantity. Title and price are
+ * fetched from the database via fetchCartBookInfo when the drawer opens,
+ * maintaining the server as the single source of truth for metadata.
  */
 export function CartDrawer({ open, onClose }: CartDrawerProps) {
   const items = useCartStore((s) => s.items);
@@ -42,11 +42,24 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
 
   const [isPending, startTransition] = useTransition();
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [bookInfo, setBookInfo] = useState<Record<string, CartBookInfo>>({});
+  const [isLoadingInfo, setIsLoadingInfo] = useState(false);
 
-  const subtotal = items.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0,
-  );
+  // Fetch book metadata from the server when the drawer opens
+  useEffect(() => {
+    if (!open || items.length === 0) return;
+
+    const bookIds = [...new Set(items.map((item) => item.bookId))];
+    setIsLoadingInfo(true);
+    fetchCartBookInfo(bookIds)
+      .then(setBookInfo)
+      .finally(() => setIsLoadingInfo(false));
+  }, [open, items]);
+
+  const subtotal = items.reduce((sum, item) => {
+    const info = bookInfo[item.bookId];
+    return sum + (info ? info.price * item.quantity : 0);
+  }, 0);
 
   const handleCheckout = useCallback(() => {
     setCheckoutError(null);
@@ -96,92 +109,107 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
             <p className="text-sm/6 text-zinc-500 dark:text-zinc-400">
               Your cart is empty.
             </p>
+          ) : isLoadingInfo ? (
+            <p className="text-sm/6 text-zinc-500 dark:text-zinc-400">
+              Loading cart...
+            </p>
           ) : (
             <ul className="divide-y divide-zinc-200 dark:divide-zinc-700">
-              {items.map((item) => (
-                <li
-                  key={`${item.bookId}-${item.format}`}
-                  className="py-4 first:pt-0"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm/6 font-medium text-zinc-950 dark:text-white">
-                        {item.title}
-                      </p>
-                      <p className="text-sm/6 text-zinc-500 dark:text-zinc-400">
-                        {item.format}
+              {items.map((item) => {
+                const info = bookInfo[item.bookId];
+                const title = info?.title ?? "Unknown Book";
+                const price = info?.price ?? 0;
+
+                return (
+                  <li
+                    key={`${item.bookId}-${item.format}`}
+                    className="py-4 first:pt-0"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm/6 font-medium text-zinc-950 dark:text-white">
+                          {title}
+                        </p>
+                        <p className="text-sm/6 text-zinc-500 dark:text-zinc-400">
+                          {item.format}
+                        </p>
+                      </div>
+                      <p className="text-sm/6 font-medium text-zinc-950 dark:text-white">
+                        {formatPrice(price * item.quantity)}
                       </p>
                     </div>
-                    <p className="text-sm/6 font-medium text-zinc-950 dark:text-white">
-                      {formatPrice(item.price * item.quantity)}
-                    </p>
-                  </div>
 
-                  <div className="mt-2 flex items-center gap-2">
-                    <Button
-                      plain
-                      className="!px-2 !py-1 text-xs"
-                      onClick={() =>
-                        item.quantity > 1
-                          ? updateQuantity(
-                              item.bookId,
-                              item.format,
-                              item.quantity - 1,
-                            )
-                          : removeItem(item.bookId, item.format)
-                      }
-                      aria-label={`Decrease quantity of ${item.title}`}
-                    >
-                      -
-                    </Button>
-                    <span className="min-w-[2rem] text-center text-sm/6 text-zinc-950 dark:text-white">
-                      {item.quantity}
-                    </span>
-                    <Button
-                      plain
-                      className="!px-2 !py-1 text-xs"
-                      onClick={() =>
-                        updateQuantity(
-                          item.bookId,
-                          item.format,
-                          item.quantity + 1,
-                        )
-                      }
-                      aria-label={`Increase quantity of ${item.title}`}
-                    >
-                      +
-                    </Button>
-                    <Button
-                      plain
-                      className="ml-auto text-xs text-red-600 dark:text-red-400"
-                      onClick={() => removeItem(item.bookId, item.format)}
-                      aria-label={`Remove ${item.title} from cart`}
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                </li>
-              ))}
+                    <div className="mt-2 flex items-center gap-2">
+                      <Button
+                        plain
+                        className="!px-2 !py-1 text-xs"
+                        onClick={() =>
+                          item.quantity > 1
+                            ? updateQuantity(
+                                item.bookId,
+                                item.format,
+                                item.quantity - 1,
+                              )
+                            : removeItem(item.bookId, item.format)
+                        }
+                        aria-label={`Decrease quantity of ${title}`}
+                      >
+                        -
+                      </Button>
+                      <span className="min-w-[2rem] text-center text-sm/6 text-zinc-950 dark:text-white">
+                        {item.quantity}
+                      </span>
+                      <Button
+                        plain
+                        className="!px-2 !py-1 text-xs"
+                        onClick={() =>
+                          updateQuantity(
+                            item.bookId,
+                            item.format,
+                            item.quantity + 1,
+                          )
+                        }
+                        aria-label={`Increase quantity of ${title}`}
+                      >
+                        +
+                      </Button>
+                      <Button
+                        plain
+                        className="ml-auto text-xs text-red-600 dark:text-red-400"
+                        onClick={() => removeItem(item.bookId, item.format)}
+                        aria-label={`Remove ${title} from cart`}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
 
         {/* Order summary */}
-        {items.length > 0 && (
+        {items.length > 0 && !isLoadingInfo && (
           <div className="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-700">
             <DescriptionList>
-              {items.map((item) => (
-                <div
-                  key={`${item.bookId}-${item.format}-summary`}
-                  className="flex items-center justify-between py-2"
-                >
-                  <DescriptionTerm>{item.title}</DescriptionTerm>
-                  <DescriptionDetails>
-                    {item.format} x {item.quantity} ={" "}
-                    {formatPrice(item.price * item.quantity)}
-                  </DescriptionDetails>
-                </div>
-              ))}
+              {items.map((item) => {
+                const info = bookInfo[item.bookId];
+                return (
+                  <div
+                    key={`${item.bookId}-${item.format}-summary`}
+                    className="flex items-center justify-between py-2"
+                  >
+                    <DescriptionTerm>
+                      {info?.title ?? "Unknown"}
+                    </DescriptionTerm>
+                    <DescriptionDetails>
+                      {item.format} x {item.quantity} ={" "}
+                      {formatPrice((info?.price ?? 0) * item.quantity)}
+                    </DescriptionDetails>
+                  </div>
+                );
+              })}
 
               <div className="flex items-center justify-between py-3">
                 <DescriptionTerm className="font-semibold text-zinc-950 dark:text-white">

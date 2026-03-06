@@ -558,6 +558,9 @@ All four CI quality gates pass locally:
 - **`lib/queries/orders.ts`** — Already existed with `getOrderHistory` facade selecting `purchased_price` from order_items. No changes needed.
 
 - **Architecture**: Cart state is client-only (zustand + localStorage). Server Action `processCheckout` is the trust boundary — it re-validates prices at execution time regardless of what the client stored. This ensures price integrity even if the client-side cart has stale prices.
+
+---
+
 ## Implementation: High-Scale Database Seeding
 
 ### Prompt (User)
@@ -568,11 +571,11 @@ All four CI quality gates pass locally:
 
 - **`lib/db/seed.ts`** — New standalone Node.js seed script. Uses `createClient` from `@supabase/supabase-js` directly with `SUPABASE_SECRET_KEY` to obtain admin access (bypasses RLS). Loads `.env.local` from the project root via `dotenv.config({ path: path.resolve(process.cwd(), '.env.local') })`. Fails fast with a clear error message if env vars are missing.
 
-- **Title generation** — Template × topic combinatorial approach: 25 `TITLE_TEMPLATES` × 46 `TECH_TOPICS` = 1,150 unique possible titles. Shuffled and capped at 210. Guarantees authentic-sounding developer book titles (e.g. "Kafka at Scale", "Production-Ready OpenTelemetry") without repetition.
+- **Title generation** — Template x topic combinatorial approach: 25 `TITLE_TEMPLATES` x 46 `TECH_TOPICS` = 1,150 unique possible titles. Shuffled and capped at 210. Guarantees authentic-sounding developer book titles (e.g. "Kafka at Scale", "Production-Ready OpenTelemetry") without repetition.
 
 - **Seed auth users** — Reviews require `user_id REFERENCES auth.users(id)`. The script creates 20 real auth.users rows via `supabase.auth.admin.createUser()` with `email_confirm: true`. These are seed-only accounts with `@seed.bookstore.dev` email domains.
 
-- **Review distribution** — ~55% of books receive 3–10 reviews each. `pickN` (without replacement) ensures `UNIQUE (book_id, user_id)` is never violated. Total reviews ~600.
+- **Review distribution** — ~55% of books receive 3-10 reviews each. `pickN` (without replacement) ensures `UNIQUE (book_id, user_id)` is never violated. Total reviews ~600.
 
 - **Batching** — All table inserts use `insertBatched()` helper (default batch size: 50 rows). Junction tables (`book_authors`, `book_genres`, `reviews`) use batch size 100. Minimises network round-trips against the Supabase PostgREST API.
 
@@ -586,16 +589,16 @@ All four CI quality gates pass locally:
 
 ### Seed volume summary
 
-| Table         | Target rows |
-|---------------|-------------|
-| publishers    | 10          |
-| authors       | 50          |
-| genres        | 12          |
-| seed users    | 20          |
-| books         | 210         |
-| book_authors  | ~260        |
-| book_genres   | ~420        |
-| reviews       | ~600        |
+| Table        | Target rows |
+| ------------ | ----------- |
+| publishers   | 10          |
+| authors      | 50          |
+| genres       | 12          |
+| seed users   | 20          |
+| books        | 210         |
+| book_authors | ~260        |
+| book_genres  | ~420        |
+| reviews      | ~600        |
 
 ### Usage
 
@@ -610,7 +613,7 @@ npm run seed      # runs lib/db/seed.ts against the project in .env.local
 
 ### Prompt (User)
 
-> Fix the double-click auth bug. Before signInWithOAuth, call signOut() to clear stale sessions. In proxy.ts, clear sb-* cookies when an auth error is detected in the URL. In login/page.tsx, clear the error param from the URL after it's been displayed.
+> Fix the double-click auth bug. Before signInWithOAuth, call signOut() to clear stale sessions. In proxy.ts, clear sb-\* cookies when an auth error is detected in the URL. In login/page.tsx, clear the error param from the URL after it's been displayed.
 
 ### Root Cause
 
@@ -631,3 +634,33 @@ The "first click fails, second click works" bug has three contributing causes:
 - **`app/login/clear-error-param.tsx`** — New `'use client'` component. Calls `router.replace('/login', { scroll: false })` inside a `useEffect` on mount. Strips `?error=...` from the browser URL history entry once the user has seen the banner. Zero visible output — purely a URL cleanup side-effect.
 
 - **`app/login/page.tsx`** — Imported `ClearErrorParam`. When `errorMessage` is truthy, renders `<Alert>` and `<ClearErrorParam />` together inside a fragment so the URL is cleaned immediately after the banner appears.
+
+---
+
+## Bug Fix: Resolving Book Discovery Errors in Checkout Flow
+
+### Prompt (User)
+
+> Fix the 'Book Not Found' error in the checkout flow and ensure the Cart pulls data correctly. Refactor getBookPrices to bare select (no joins). Cart store addItem should only require bookId — metadata fetched from server. processCheckout should log missing IDs. BookCard should pass book.id to cart store. Run prettier --write to fix formatting.
+
+### Key Decisions / What Changed
+
+- **`lib/queries/orders.ts`** — Confirmed `getBookPrices` already uses a bare select (`id, title, price` from `books` with no joins). No `!inner` or relation joins that could cause rows to be excluded when a book lacks an author or publisher. No changes needed.
+
+- **`lib/store/useCart.ts`** — Refactored `addItem` to accept only `(bookId, format)` instead of `(bookId, title, price, format)`. CartItem no longer stores `title` or `price`. The server is the single source of truth for book metadata — the client cart only tracks what the user selected (book ID, format, quantity).
+
+- **`lib/actions/cart.ts`** — New Server Action `fetchCartBookInfo(bookIds)`. Delegates to `getBookPrices` and returns a `Record<string, CartBookInfo>` (JSON-serializable) with `id`, `title`, `price`. Called by the CartDrawer when it opens to display server-sourced metadata.
+
+- **`components/cart-drawer.tsx`** — Refactored to fetch book metadata from the server via `fetchCartBookInfo` on drawer open (`useEffect`). Displays "Loading cart..." while fetching. Title and price are resolved from the server response, not from the cart store. This eliminates stale/missing metadata issues.
+
+- **`components/add-to-cart-button.tsx`** — Simplified props: removed `title` and `price`. Now accepts only `bookId` and `formats`. Calls `addItem(bookId, selectedFormat)`.
+
+- **`components/book-card.tsx`** — Updated `AddToCartButton` invocation to pass only `bookId` and `formats` (removed `title` and `price` props).
+
+- **`lib/actions/checkout.ts`** — Enhanced missing-book error handling. Instead of returning on the first missing book, now collects all missing IDs and logs them with `console.error` including requested count vs found count. This helps diagnose whether the issue is RLS policy filtering or genuinely missing rows.
+
+- **Prettier formatting** — Ran `npx prettier --write` on `app/orders/page.tsx`, `app/orders/success/page.tsx`, `lib/store/useCart.ts` to resolve CI formatting failures.
+
+### Root Cause Analysis
+
+The "Book Not Found" error could occur when `getBookPrices` used joins (e.g., `!inner` for authors/genres) causing books without complete relations to be excluded from results. The fix ensures a bare select with no relation joins, so any book row in the `books` table is discoverable regardless of whether it has linked authors, publishers, or genres. The enhanced logging in `processCheckout` now identifies specific missing book IDs to distinguish between RLS filtering and missing row scenarios.

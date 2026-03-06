@@ -96,12 +96,7 @@ export function BookCard({ book }: BookCardProps) {
         </div>
 
         {/* Add to Cart */}
-        <AddToCartButton
-          bookId={book.id}
-          title={book.title}
-          price={book.price}
-          formats={book.formats}
-        />
+        <AddToCartButton bookId={book.id} formats={book.formats} />
       </div>
     </article>
   );

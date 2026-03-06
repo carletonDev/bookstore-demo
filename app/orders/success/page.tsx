@@ -23,9 +23,7 @@ export default async function OrderSuccessPage({
 
   return (
     <main className="mx-auto max-w-lg px-4 py-16 text-center space-y-6">
-      <Alert variant="info">
-        Your order has been placed successfully!
-      </Alert>
+      <Alert variant="info">Your order has been placed successfully!</Alert>
 
       <Heading level={1}>Thank You for Your Purchase</Heading>
 
