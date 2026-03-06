@@ -267,6 +267,20 @@ The `processCheckout` action re-fetches prices from the database at checkout tim
 
 ---
 
+## Implementation: Branding and Landing Page (The Codex)
+
+### Prompt (User)
+
+> Implement the 'The Codex' high-fidelity landing page at app/page.tsx. Hero with headline 'The Codex' and subtext 'Technical Manuscripts for the Modern Engineer.' Dark zinc-950 palette. Create components/Terminal.tsx with animated CLI sequence (codex --fetch, indexing lines, ASCII progress bar). Smart CTAs: authenticated users see 'Enter The Library' linking to /catalog, unauthenticated see 'Sign in with Google' triggering signInWithGoogle. Secondary outline Button linking to GitHub repo. Update root layout.tsx metadata. Log in CHATLOG.md under 'Implementation: Branding and Landing Page (The Codex)'.
+
+### Key Decisions / What Changed
+
+- **`components/Terminal.tsx`** — New Client Component (`'use client'`). Simulates a CLI session with character-by-character typing animation. Sequence: `> codex --fetch --limit=10000`, three "Indexing: ... [DONE]" lines (Clean Code, Pragmatic Programmer, SICP), then an ASCII progress bar `[====================] 100%` animated incrementally. Uses `useEffect` with async loop and cancellation flag for cleanup. Monospace font, zinc-900 background, rounded corners with window chrome header (red/yellow/green dots). Auto-scrolls via `useRef` + `scrollIntoView`.
+- **`app/page.tsx`** — Complete rewrite from Next.js boilerplate to The Codex landing page. Server Component that calls `getCurrentUser()` to determine CTA state. Dark zinc-950 full-page background with `font-mono`. Hero section: Catalyst `Heading` (level 1, `text-5xl/6xl`) for "The Codex", Catalyst `Text` for subtitle ("The Online Bookstore Demo"). Terminal component centered below hero. Smart CTAs: if `getCurrentUser()` returns a session, renders "Enter The Library" as a `Link` to `/catalog` wrapping a solid Catalyst `Button`; otherwise renders a `form action={signInWithGoogle}` with "Sign in with Google" solid `Button`. Secondary: outline Catalyst `Button` with inline GitHub SVG icon linking to `https://github.com/carletonDev/bookstore-demo` (new tab).
+- **`app/layout.tsx`** — Updated `metadata.title` from "Create Next App" to "The Codex". Added developer-centric `metadata.description`: "Technical manuscripts for the modern engineer. Browse, review, and purchase programming books — built with Next.js 16, Supabase, and Catalyst UI."
+
+---
+
 ## AI Output I Intentionally Changed
 
 ### Review Aggregates: View → Database Trigger
