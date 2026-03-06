@@ -70,7 +70,16 @@ export async function refreshSession(request: NextRequest): Promise<NextResponse
   // If the access token is expired, @supabase/ssr uses the refresh token
   // to obtain a new pair and triggers setAll() above — transparently rotating
   // the session without any additional application logic.
-  await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // Authorization: redirect unauthenticated users to /login when they
+  // attempt to access protected routes (e.g. /catalog). Defense in depth —
+  // the catalog page also checks getCurrentUser() and redirects.
+  if (!user && request.nextUrl.pathname.startsWith('/catalog')) {
+    const loginUrl = request.nextUrl.clone()
+    loginUrl.pathname = '/login'
+    return NextResponse.redirect(loginUrl)
+  }
 
   return response
 }
