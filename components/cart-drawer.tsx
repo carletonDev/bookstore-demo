@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   SlideOver,
   SlideOverPanel,
@@ -44,9 +45,9 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const clearCart = useCartStore((s) => s.clearCart);
 
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const [orderId, setOrderId] = useState<string | null>(null);
 
   const subtotal = items.reduce((sum, item) => {
     const info = bookInfo.get(item.bookId);
@@ -65,13 +66,14 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
       );
 
       if (result.success) {
-        setOrderId(result.orderId ?? null);
         clearCart();
+        onClose();
+        router.push("/orders");
       } else {
         setCheckoutError(result.error ?? "Checkout failed.");
       }
     });
-  }, [items, clearCart]);
+  }, [items, clearCart, onClose, router]);
 
   return (
     <SlideOver open={open} onClose={onClose}>
@@ -85,18 +87,6 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
           </Button>
         </div>
 
-        {/* Success message */}
-        {orderId && (
-          <div className="mt-4 rounded-lg bg-green-50 p-4 ring-1 ring-inset ring-green-200 dark:bg-green-950/30 dark:ring-green-800">
-            <p className="text-sm/6 font-medium text-green-800 dark:text-green-300">
-              Order placed successfully!
-            </p>
-            <p className="mt-1 text-xs text-green-700 dark:text-green-400">
-              Order ID: {orderId}
-            </p>
-          </div>
-        )}
-
         {/* Error message */}
         {checkoutError && (
           <div className="mt-4 rounded-lg bg-red-50 p-4 ring-1 ring-inset ring-red-200 dark:bg-red-950/30 dark:ring-red-800">
@@ -108,7 +98,7 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
 
         {/* Cart items */}
         <div className="mt-6 flex-1">
-          {items.length === 0 && !orderId ? (
+          {items.length === 0 ? (
             <p className="text-sm/6 text-zinc-500 dark:text-zinc-400">
               Your cart is empty.
             </p>

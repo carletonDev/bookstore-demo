@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Heading } from "@/components/heading";
 import { Text } from "@/components/text";
 import { Badge } from "@/components/badge";
@@ -41,11 +42,13 @@ export function BookCard({ book }: BookCardProps) {
     <article className="group rounded-xl bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-800 dark:ring-white/10 overflow-hidden transition-shadow hover:shadow-md">
       {/* Cover image placeholder */}
       {book.cover_image_url ? (
-        <div className="aspect-[3/4] bg-zinc-100 dark:bg-zinc-700 overflow-hidden">
-          <img
+        <div className="relative aspect-[3/4] bg-zinc-100 dark:bg-zinc-700 overflow-hidden">
+          <Image
             src={book.cover_image_url}
             alt={`Cover of ${book.title}`}
-            className="h-full w-full object-cover"
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1280px) 33vw, 25vw"
+            className="object-cover"
           />
         </div>
       ) : (

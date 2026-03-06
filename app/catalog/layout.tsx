@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Heading } from "@/components/heading";
 import { Text } from "@/components/text";
 import { Button } from "@/components/button";
+import { CatalogCartShell } from "@/components/catalog-cart-shell";
 import { signOut } from "@/lib/actions/auth";
 import { getCurrentUserProfile } from "@/lib/utils/currentUserProfile";
 
@@ -55,6 +56,11 @@ export default async function CatalogLayout({
             </Link>
           </nav>
 
+          {/* Cart trigger — sidebar */}
+          <div className="mb-4">
+            <CatalogCartShell />
+          </div>
+
           {/* Sign Out */}
           <div className="border-t border-zinc-200 pt-4 dark:border-zinc-700">
             <form action={signOut}>
@@ -84,11 +90,16 @@ export default async function CatalogLayout({
                 {profile.fullName}
               </span>
             </Text>
-            <form action={signOut} className="lg:hidden">
-              <Button plain type="submit" className="text-xs">
-                Sign Out
-              </Button>
-            </form>
+            <div className="flex items-center gap-2">
+              <div className="lg:hidden">
+                <CatalogCartShell />
+              </div>
+              <form action={signOut} className="lg:hidden">
+                <Button plain type="submit" className="text-xs">
+                  Sign Out
+                </Button>
+              </form>
+            </div>
           </div>
         </header>
 
