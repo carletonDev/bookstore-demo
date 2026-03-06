@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/utils/currentUser";
 import type { StarRating } from "@/types/database";
@@ -70,6 +71,10 @@ export async function submitReview(
       error: "Failed to submit review. Please try again.",
     };
   }
+
+  // Bust the /catalog cache so the updated rating_avg and rating_count
+  // are visible immediately on the next page load without a full redeploy.
+  revalidatePath("/catalog");
 
   return { success: true, error: null };
 }

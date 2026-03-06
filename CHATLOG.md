@@ -654,3 +654,22 @@ The "first click fails, second click works" bug has three contributing causes:
 - **Updated `components/cart-drawer.tsx`** — On successful checkout, calls `clearCart()`, closes the drawer via `onClose()`, and redirects to `/orders` using `next/navigation`'s `useRouter().push()`. Removed the inline success message (orderId state) since the user is redirected instead.
 - **Dark zinc theme consistency** — All new and modified components use the existing zinc-900/950 dark palette. The SlideOverPanel already renders with `dark:bg-zinc-900`. CartDrawer text uses `dark:text-white` / `dark:text-zinc-400`. No theme deviations introduced.
 - **Architectural patterns preserved** — Facade pattern (server action wraps `getBookPrices`), Command pattern (checkout as server action), Zustand for client state, Interface Segregation (AddToCartButton accepts only `bookId` + `formats`).
+
+---
+
+## Bug Fix: Trigger Synchronization and Rating Aggregates
+
+### Prompt (User)
+
+> Re-run trg_book_rating_aggregates creation ensuring FOR EACH ROW and INSERT/UPDATE/DELETE. Add a migration with the bulk UPDATE re-sync. Verify BookCard uses rating_avg and rating_count. Add revalidatePath('/catalog') to submitReview success block.
+
+### Key Decisions / What Changed
+
+- **`migrations/0004_fix_rating_trigger_resync.sql`** — New migration with three steps:
+  1. `CREATE OR REPLACE FUNCTION update_book_rating_aggregates()` — re-applies the full trigger function body with `AFTER INSERT / UPDATE / DELETE` O(1) incremental arithmetic.
+  2. `DROP TRIGGER IF EXISTS trg_book_rating_aggregates ON reviews` + `CREATE TRIGGER` — guarantees the trigger is attached with the correct `AFTER INSERT OR UPDATE OF rating OR DELETE` / `FOR EACH ROW` event mask regardless of prior state. Triggers cannot be replaced in place in Postgres; drop-and-recreate is the only safe pattern.
+  3. Bulk re-sync `UPDATE books SET rating_sum = COALESCE((SELECT SUM(rating) ...), 0), rating_count = (SELECT COUNT(*) ...)` — back-fills correct aggregates for all existing books from live review data. `rating_avg` is a `GENERATED ALWAYS AS STORED` column and recalculates automatically when `rating_sum` / `rating_count` change.
+
+- **`components/book-card.tsx`** — Verified: already reads `book.rating_avg` (via `formatRating()`) and `book.rating_count` (review count label). No changes needed.
+
+- **`lib/actions/reviews.ts`** — Added `import { revalidatePath } from "next/cache"` and `revalidatePath("/catalog")` call in the success block, after the insert. This busts Next.js's full-route cache for `/catalog` so the updated `rating_avg` and `rating_count` are visible on the next page load without a redeploy or manual ISR invalidation.
