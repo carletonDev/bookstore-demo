@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Button } from "@/components/button";
 import { Heading } from "@/components/heading";
 import { Text } from "@/components/text";
 import {
@@ -35,6 +37,9 @@ export default async function OrdersPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 space-y-10">
+      <Link href="/catalog">
+        <Button outline>Back to Library</Button>
+      </Link>
       <Heading level={1}>Order History</Heading>
 
       {orders.length === 0 ? (

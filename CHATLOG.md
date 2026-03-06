@@ -673,3 +673,27 @@ The "first click fails, second click works" bug has three contributing causes:
 - **`components/book-card.tsx`** — Verified: already reads `book.rating_avg` (via `formatRating()`) and `book.rating_count` (review count label). No changes needed.
 
 - **`lib/actions/reviews.ts`** — Added `import { revalidatePath } from "next/cache"` and `revalidatePath("/catalog")` call in the success block, after the insert. This busts Next.js's full-route cache for `/catalog` so the updated `rating_avg` and `rating_count` are visible on the next page load without a redeploy or manual ISR invalidation.
+
+---
+
+## Implementation: Accurate Global Sales Tracking and UI Navigation
+
+### Prompt (User)
+
+> Implement accurate sales tracking and fix UI navigation for The Codex. Create a migration to denormalize sales stats onto the books table (total_sold, total_revenue) with a SECURITY DEFINER trigger. Add 'Back to Library' buttons to orders and reports pages. Update global stats to sum from books table instead of genre joins. Add revalidatePath for /reports and /orders after checkout.
+
+### Key Decisions / What Changed
+
+- **`migrations/0005_book_sales_stats.sql`** — New migration that:
+  1. Adds `total_sold INTEGER DEFAULT 0` and `total_revenue NUMERIC(12,2) DEFAULT 0.00` columns to `books`.
+  2. Creates `update_book_sales_stats()` as a `SECURITY DEFINER` trigger function (bypasses RLS) that increments `total_sold` and `total_revenue` on each `order_items` insert.
+  3. Attaches `trg_book_sales_stats` as an `AFTER INSERT` row-level trigger on `order_items`.
+  4. Back-fills existing data from `order_items` into the new columns.
+
+- **`app/orders/page.tsx`** — Added a 'Back to Library' navigation button at the top of the page using Catalyst `Button` (outline variant) wrapped in a Next.js `Link` pointing to `/catalog`.
+
+- **`app/reports/page.tsx`** — Added the same 'Back to Library' button. Switched from `aggregateGlobalStats(genreRows)` to the new `getGlobalSalesStats()` query. Both data fetches now run in parallel via `Promise.all`.
+
+- **`lib/queries/reports.ts`** — Added `getGlobalSalesStats()` that sums `total_sold` and `total_revenue` directly from the `books` table and counts orders from the `orders` table. This eliminates double-counting that occurred when a book belonged to multiple genres. Marked `aggregateGlobalStats()` as `@deprecated`.
+
+- **`lib/actions/checkout.ts`** — Added `revalidatePath("/reports")` and `revalidatePath("/orders")` after successful order placement so Next.js full-route cache is busted for both pages.

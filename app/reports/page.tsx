@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Button } from "@/components/button";
 import { Heading } from "@/components/heading";
 import { Text } from "@/components/text";
 import {
@@ -8,7 +10,7 @@ import {
   TableHeader,
   TableCell,
 } from "@/components/table";
-import { getGenreSales, aggregateGlobalStats } from "@/lib/queries/reports";
+import { getGenreSales, getGlobalSalesStats } from "@/lib/queries/reports";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -18,11 +20,16 @@ function formatCurrency(amount: number): string {
 }
 
 export default async function ReportsPage() {
-  const genreRows = await getGenreSales();
-  const stats = aggregateGlobalStats(genreRows);
+  const [genreRows, stats] = await Promise.all([
+    getGenreSales(),
+    getGlobalSalesStats(),
+  ]);
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 space-y-10">
+      <Link href="/catalog">
+        <Button outline>Back to Library</Button>
+      </Link>
       {/* Global Sales Stats */}
       <section className="space-y-4">
         <Heading level={1}>Global Sales Stats</Heading>
