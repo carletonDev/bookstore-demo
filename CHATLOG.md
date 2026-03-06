@@ -526,3 +526,28 @@ All four CI quality gates pass locally:
 - `npx tsc --noEmit` — 0 errors
 - `npx prettier --check .` — all files formatted
 - `npm run test` — 19/19 tests pass (672ms)
+
+---
+
+## Session 11 — 2026-03-06
+
+### Prompt (User)
+
+> Run npx prettier --write on the 5 files flagged by prettier --check (app/page.tsx, CHATLOG.md, components/Terminal.tsx, lib/queries/userStats.ts, lib/utils/currentUserProfile.ts).
+
+### Key Decisions / What Changed
+
+- Ran `npx prettier --write` on the 5 files with formatting issues from the main merge. All files now pass `prettier --check .`.
+
+---
+
+## Session 12 — 2026-03-06
+
+### Prompt (User)
+
+> Use next/image `<Image>` instead of `<img>` in `components/book-card.tsx` to fix the `@next/next/no-img-element` ESLint warning.
+
+### Key Decisions / What Changed
+
+- **`components/book-card.tsx`** — Replaced `<img>` with `next/image` `<Image>` component using `fill` layout. Added `relative` to the parent container and `sizes` prop for responsive optimization.
+- **`next.config.ts`** — Added `images.remotePatterns` with wildcard HTTPS hostname so external cover image URLs work with `next/image`.
