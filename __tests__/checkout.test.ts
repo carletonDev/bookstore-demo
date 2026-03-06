@@ -26,6 +26,10 @@ vi.mock("@/lib/supabase/server", () => ({
   createServerClient: vi.fn(async () => mockSupabase),
 }));
 
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}));
+
 // Must import after mocks are set up
 const { processCheckout } = await import("@/lib/actions/checkout");
 
