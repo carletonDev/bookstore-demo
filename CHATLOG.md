@@ -242,6 +242,31 @@ I am separating the OAuth Callback (identity exchange) from the Auth Proxy (sess
 
 ---
 
+## Implementation: Transactional Integrity and Cart UI
+
+### Prompt (User)
+
+> Implement the Cart and Checkout logic for The Codex. State: Create a client-side store (Zustand or Context) for managing the cart (ID, Quantity, Format). UI: Build a CartDrawer using the Catalyst Slide-over (Dialog). Use Catalyst DescriptionList for the order summary. The Snapshot Action: Implement processCheckout. Senior Requirement: It MUST re-fetch the current live price for each book from the database at the moment of execution. Integrity: Save this price into the order_items.purchased_price column to preserve historical data. Authorization: Ensure processCheckout checks for a valid user session before writing to the database.
+
+### Key Decisions / What Changed
+
+- **`stores/cart.ts`** — Zustand store with `persist` middleware (localStorage key: `codex-cart`). State shape: `CartItem { bookId, format, quantity }`. Actions: `addItem` (increments quantity if item+format exists), `removeItem`, `updateQuantity` (minimum 1), `clearCart`, `totalItems` (derived). Keyed on `(bookId, format)` tuple — the same book in different formats is a separate line item.
+- **`components/dialog.tsx`** — Catalyst-style slide-over Dialog. Three exports: `Dialog` (overlay + Escape key + scroll lock), `DialogPanel` (right-anchored panel, `max-w-md`, zinc palette, dark mode), `DialogTitle` (semantic `h2`). Uses `role="dialog"` and `aria-modal="true"` for accessibility. Backdrop click closes.
+- **`components/description-list.tsx`** — Catalyst DescriptionList with three exports: `DescriptionList` (`<dl>` with dividers), `DescriptionTerm` (`<dt>`, zinc-500 medium), `DescriptionDetails` (`<dd>`, zinc-950 / white dark). Used in the cart drawer for the order summary section.
+- **`components/cart-drawer.tsx`** — Client Component combining Dialog (slide-over) and DescriptionList. Receives `bookInfo: Map<string, { title, price }>` from parent (ISP — only the fields needed for display). Renders item list with quantity controls (+/−/Remove), order summary via DescriptionList, and a Checkout button. Uses `useTransition` for the checkout action to show "Processing…" state. Displays success (order ID) or error messages inline.
+- **`lib/queries/orders.ts`** — Facade function `getBookPrices(bookIds)` that fetches live `id, title, price` from the `books` table and returns a `Map<string, BookPriceRow>` for O(1) lookup. Used exclusively by `processCheckout` to snapshot prices.
+- **`lib/actions/checkout.ts`** — `processCheckout` Server Action (Command pattern). Authorization: calls `getCurrentUser()` and rejects if null. Input validation: verifies array structure, string bookIds, and integer quantities ≥ 1. Price snapshot: calls `getBookPrices()` to re-fetch live prices at the moment of execution — never trusts client-submitted prices. Computes `total_amount` from live prices × quantities with `Math.round(n * 100) / 100` to avoid floating-point drift. Inserts into `orders` (status: 'pending') then `order_items` with `purchased_price` set to the live price snapshot. Returns `{ success, orderId }` or `{ success: false, error }`.
+- **`package.json`** — Added `zustand` dependency.
+
+### Architectural Rationale: Price Snapshotting
+
+The `processCheckout` action re-fetches prices from the database at checkout time rather than trusting prices sent from the client. This is a deliberate security and integrity decision:
+1. **Security** — Client-submitted prices can be tampered with. The server is the only authority on pricing.
+2. **Historical integrity** — The `purchased_price` column in `order_items` preserves the exact price at the moment of purchase. Future price changes to the `books` table do not retroactively alter order history.
+3. **Consistency** — The `total_amount` on the `orders` row is always the sum of `purchased_price × quantity` across its items, computed from the same price fetch.
+
+---
+
 ## AI Output I Intentionally Changed
 
 ### Review Aggregates: View → Database Trigger
@@ -376,15 +401,15 @@ $$;
 
 - **`lib/queries/reports.ts`** — Facade over the `view_genre_sales` view. Exports `getGenreSales()` (fetches all genre rows) and `aggregateGlobalStats()` (pure function that reduces genre rows into global totals).
 
-- **`lib/queries/orders.ts`** — Facade for order history. `getOrderHistory(userId)` fetches orders with nested `order_items -> books` using Adapter pattern to map raw PostgREST shape to `OrderWithItems[]`. Uses `purchased_price` (historical snapshot), never live `books.price`.
+- **`lib/queries/orders.ts`** — Facade for order history. `getOrderHistory(userId)` fetches orders with nested `order_items -> books` using Adapter pattern to map raw PostgREST shape to `OrderWithItems[]`. Uses `purchased_price` (historical snapshot), never live `books.price`. Also exports `getBookPrices()` for checkout price lookups.
 
-- **`lib/actions/checkout.ts`** — `processCheckout` Server Action (Command pattern). Validates cart items at the boundary, authenticates via Supabase session, snapshots current `books.price` from the database, creates `orders` row with computed `total_amount`, inserts `order_items` with `purchased_price` = snapshot. The client never controls the price.
+- **`lib/actions/checkout.ts`** — `processCheckout` Server Action (Command pattern). Validates cart items at the boundary, authenticates via `getCurrentUser()`, snapshots current `books.price` via `getBookPrices()`, creates `orders` row with computed `total_amount`, inserts `order_items` with `purchased_price` = snapshot. Returns `{ success, orderId?, error? }`. The client never controls the price.
 
 - **`app/reports/page.tsx`** — Server Component. Calls `getGenreSales()` and `aggregateGlobalStats()`. Renders "Global Sales Stats" as three stat cards (total revenue, units sold, orders) and "Genre Breakdown" as a Catalyst Table with genre name, order count, units sold, and revenue columns. Currency formatted via `Intl.NumberFormat`.
 
 - **`app/orders/page.tsx`** — Server Component. Calls `getCurrentUser()` (redirects to `/login` if null), then `getOrderHistory(userId)`. Renders each order as a card with status badge, Catalyst DescriptionList showing date, total, and line items with `purchased_price` (historical price, not current).
 
-- **`proxy.ts`** — Refactored `refreshSession()` to return `{ response, user }` instead of just `response`. Added `PROTECTED_ROUTES = ['/reports', '/orders']`. The `proxy()` export now checks if the requested path matches a protected route and redirects unauthenticated users to `/login`.
+- **`proxy.ts`** — Refactored `refreshSession()` to return `{ response, user }` instead of just `response`. Added `PROTECTED_ROUTES = ['/catalog', '/reports', '/orders']`. The `proxy()` export now checks if the requested path matches a protected route and redirects unauthenticated users to `/login`.
 
 - **`vitest.config.ts`** — Created Vitest configuration with `@/*` path alias matching `tsconfig.json`.
 
@@ -403,3 +428,24 @@ $$;
   - Missing books: throws when a book is not found in the database
 
 - **All 19 tests pass** (`vitest run`: 2 test files, 19 tests, 0 failures).
+
+---
+
+## Implementation: Catalog and Social Proof Logic
+
+### Prompt (User)
+
+> Implement the Book Catalog and Review system at the new /catalog path. Route Migration: Move the catalog logic to app/catalog/page.tsx as a Server Component handling q, genre, and cursor URL params. UI Shell: Wrap in Catalyst SidebarLayout with Genre filters and Format toggle. BookCard: Build using Catalyst Heading, Text, Badge with 1-decimal rating_avg. Social Proof: Implement submitReview Server Action handling unique user/book constraint and relying on O(1) database trigger. Create Catalyst Dialog for star rating. Authorization: In proxy.ts, ensure /catalog without valid session redirects to /login.
+
+### Key Decisions / What Changed
+
+- **`components/badge.tsx`** — New Catalyst Badge component. Inline pill with colored background and ring border. Supports 7 color variants (zinc, green, amber, red, blue, purple, pink). Used in BookCard for rating display and genre tags.
+- **`components/dialog.tsx`** — New Catalyst Dialog component. Uses native `<dialog>` element with `showModal()` for accessibility. Exports `Dialog`, `DialogTitle`, `DialogBody`, `DialogActions` sub-components. Marked `'use client'` for imperative open/close via `useRef`.
+- **`components/book-card.tsx`** — New BookCard Server Component. Uses Catalyst `Heading` (level 4) for title, `Text` for author and review count, `Badge` (amber) for prominent 1-decimal `rating_avg` display. Shows genre tags as blue Badges. Displays cover image with aspect-[3/4] placeholder.
+- **`components/catalog-sidebar.tsx`** — New CatalogSidebar Server Component. Renders genre filter links and format toggle links. Navigation via URL params (no client state). Uses `Heading` (level 4) for section labels, `Text` for help text. Active filters highlighted with zinc-100 background.
+- **`components/review-dialog.tsx`** — New ReviewDialog Client Component. Collects star rating (1-5) via interactive star buttons with hover preview. Uses `useActionState` with `submitReview` Server Action. Displays success/error feedback via `Alert` component. Catalyst `Dialog` for the modal shell.
+- **`lib/actions/reviews.ts`** — New `submitReview` Server Action (Command pattern). Validates input at boundary (rating 1-5, non-empty bookId). Checks `getCurrentUser()` for authentication. Handles Postgres `23505` unique violation (user already reviewed book) with user-friendly message. Relies on `trg_book_rating_aggregates` trigger for O(1) aggregate update — no application-layer aggregation.
+- **`lib/queries/genres.ts`** — New `getGenres()` Facade. Fetches all genres ordered alphabetically. Used by catalog sidebar for filter rendering.
+- **`app/catalog/layout.tsx`** — Catalyst SidebarLayout shell. Sticky top bar with Bookstore heading and Sign Out button. Max-width container for main content area.
+- **`app/catalog/page.tsx`** — Server Component at `/catalog`. Handles `q` (search), `genre` (filter), `format` (filter), and `cursor` (pagination) URL parameters. Validates format against allowed values. Fetches books and genres in parallel via `Promise.all`. Renders search bar, BookCard grid, pagination link, and ReviewDialog per book. Authorization: redirects to `/login` if `getCurrentUser()` returns null.
+- **`proxy.ts`** — Added authorization guard: unauthenticated requests to `/catalog` are redirected to `/login` before reaching the page. Defense in depth — the page component also checks `getCurrentUser()`. Destructured `getUser()` result to access `user` object for the check.

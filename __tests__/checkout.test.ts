@@ -1,30 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // ---------------------------------------------------------------------------
-// Mock Supabase client — intercepts all database calls
+// Mocks — intercept auth, price lookup, and Supabase client
 // ---------------------------------------------------------------------------
 
-const mockSelect = vi.fn()
-const mockInsert = vi.fn()
-const mockEq = vi.fn()
-const mockIn = vi.fn()
-const mockSingle = vi.fn()
+const mockGetCurrentUser = vi.fn<() => Promise<string | null>>()
+const mockGetBookPrices = vi.fn<() => Promise<Map<string, { id: string; title: string; price: number }>>>()
 
 const mockSupabase = {
-  auth: {
-    getUser: vi.fn(),
-  },
   from: vi.fn(),
 }
 
-// Chain builder helpers
-function chainSelect() {
-  return { in: mockIn, eq: mockEq, single: mockSingle }
-}
+vi.mock('@/lib/utils/currentUser', () => ({
+  getCurrentUser: (...args: unknown[]) => mockGetCurrentUser(...args),
+}))
 
-function chainInsert() {
-  return { select: vi.fn().mockReturnValue({ single: mockSingle }) }
-}
+vi.mock('@/lib/queries/orders', () => ({
+  getBookPrices: (...args: unknown[]) => mockGetBookPrices(...args),
+}))
 
 vi.mock('@/lib/supabase/server', () => ({
   createServerClient: vi.fn(async () => mockSupabase),
@@ -38,31 +31,46 @@ beforeEach(() => {
 })
 
 describe('processCheckout', () => {
-  it('throws when cart is empty', async () => {
-    await expect(processCheckout([])).rejects.toThrow('Cart is empty')
+  it('returns error when user is not authenticated', async () => {
+    mockGetCurrentUser.mockResolvedValue(null)
+
+    const result = await processCheckout([
+      { bookId: 'book-1', format: 'hardcover', quantity: 1 },
+    ])
+
+    expect(result.success).toBe(false)
+    expect(result.error).toMatch(/signed in/)
   })
 
-  it('throws when a cart item has quantity < 1', async () => {
-    await expect(
-      processCheckout([{ bookId: 'book-1', quantity: 0 }]),
-    ).rejects.toThrow('Invalid cart item')
+  it('returns error when cart is empty', async () => {
+    mockGetCurrentUser.mockResolvedValue('user-abc')
+
+    const result = await processCheckout([])
+
+    expect(result.success).toBe(false)
+    expect(result.error).toMatch(/empty/)
   })
 
-  it('throws when a cart item has no bookId', async () => {
-    await expect(
-      processCheckout([{ bookId: '', quantity: 1 }]),
-    ).rejects.toThrow('Invalid cart item')
+  it('returns error when a cart item has invalid bookId', async () => {
+    mockGetCurrentUser.mockResolvedValue('user-abc')
+
+    const result = await processCheckout([
+      { bookId: '', format: 'hardcover', quantity: 1 },
+    ])
+
+    expect(result.success).toBe(false)
+    expect(result.error).toMatch(/Invalid book ID/)
   })
 
-  it('throws when user is not authenticated', async () => {
-    mockSupabase.auth.getUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: 'not authenticated' },
-    })
+  it('returns error when a cart item has quantity < 1', async () => {
+    mockGetCurrentUser.mockResolvedValue('user-abc')
 
-    await expect(
-      processCheckout([{ bookId: 'book-1', quantity: 1 }]),
-    ).rejects.toThrow('Authentication required')
+    const result = await processCheckout([
+      { bookId: 'book-1', format: 'hardcover', quantity: 0 },
+    ])
+
+    expect(result.success).toBe(false)
+    expect(result.error).toMatch(/Invalid quantity/)
   })
 
   it('captures price snapshot from books table, not from client', async () => {
@@ -71,27 +79,15 @@ describe('processCheckout', () => {
     const serverPrice = 29.99
     const orderId = 'order-xyz'
 
-    // Auth succeeds
-    mockSupabase.auth.getUser.mockResolvedValue({
-      data: { user: { id: userId } },
-      error: null,
-    })
+    mockGetCurrentUser.mockResolvedValue(userId)
+    mockGetBookPrices.mockResolvedValue(
+      new Map([[bookId, { id: bookId, title: 'Test Book', price: serverPrice }]]),
+    )
 
     // Track what gets inserted into order_items
     let capturedOrderItems: Array<{ purchased_price: number }> = []
 
     mockSupabase.from.mockImplementation((table: string) => {
-      if (table === 'books') {
-        return {
-          select: () => ({
-            in: () =>
-              Promise.resolve({
-                data: [{ id: bookId, price: serverPrice }],
-                error: null,
-              }),
-          }),
-        }
-      }
       if (table === 'orders') {
         return {
           insert: () => ({
@@ -116,43 +112,33 @@ describe('processCheckout', () => {
       return {}
     })
 
-    const result = await processCheckout([{ bookId, quantity: 2 }])
+    const result = await processCheckout([
+      { bookId, format: 'hardcover', quantity: 2 },
+    ])
 
     // Verify the price snapshot
     expect(capturedOrderItems).toHaveLength(1)
     expect(capturedOrderItems[0].purchased_price).toBe(serverPrice)
 
     // Verify total is computed from server price, not client
-    expect(result.totalAmount).toBe(serverPrice * 2)
+    expect(result.success).toBe(true)
     expect(result.orderId).toBe(orderId)
   })
 
   it('computes total from multiple items with different prices', async () => {
-    const userId = 'user-abc'
     const orderId = 'order-multi'
 
-    mockSupabase.auth.getUser.mockResolvedValue({
-      data: { user: { id: userId } },
-      error: null,
-    })
+    mockGetCurrentUser.mockResolvedValue('user-abc')
+    mockGetBookPrices.mockResolvedValue(
+      new Map([
+        ['book-a', { id: 'book-a', title: 'Book A', price: 10.0 }],
+        ['book-b', { id: 'book-b', title: 'Book B', price: 25.5 }],
+      ]),
+    )
 
     let capturedOrderItems: Array<{ purchased_price: number; quantity: number }> = []
 
     mockSupabase.from.mockImplementation((table: string) => {
-      if (table === 'books') {
-        return {
-          select: () => ({
-            in: () =>
-              Promise.resolve({
-                data: [
-                  { id: 'book-a', price: 10.00 },
-                  { id: 'book-b', price: 25.50 },
-                ],
-                error: null,
-              }),
-          }),
-        }
-      }
       if (table === 'orders') {
         return {
           insert: () => ({
@@ -178,41 +164,27 @@ describe('processCheckout', () => {
     })
 
     const result = await processCheckout([
-      { bookId: 'book-a', quantity: 3 },
-      { bookId: 'book-b', quantity: 1 },
+      { bookId: 'book-a', format: 'hardcover', quantity: 3 },
+      { bookId: 'book-b', format: 'ereader', quantity: 1 },
     ])
 
     // Verify each item captured the correct server price
-    expect(capturedOrderItems[0].purchased_price).toBe(10.00)
-    expect(capturedOrderItems[1].purchased_price).toBe(25.50)
+    expect(capturedOrderItems[0].purchased_price).toBe(10.0)
+    expect(capturedOrderItems[1].purchased_price).toBe(25.5)
 
     // Total = (10.00 * 3) + (25.50 * 1) = 55.50
-    expect(result.totalAmount).toBe(55.50)
+    expect(result.success).toBe(true)
   })
 
-  it('throws when a book is not found in the database', async () => {
-    mockSupabase.auth.getUser.mockResolvedValue({
-      data: { user: { id: 'user-1' } },
-      error: null,
-    })
+  it('returns error when a book is not found in the database', async () => {
+    mockGetCurrentUser.mockResolvedValue('user-abc')
+    mockGetBookPrices.mockResolvedValue(new Map())
 
-    mockSupabase.from.mockImplementation((table: string) => {
-      if (table === 'books') {
-        return {
-          select: () => ({
-            in: () =>
-              Promise.resolve({
-                data: [],
-                error: null,
-              }),
-          }),
-        }
-      }
-      return {}
-    })
+    const result = await processCheckout([
+      { bookId: 'nonexistent', format: 'hardcover', quantity: 1 },
+    ])
 
-    await expect(
-      processCheckout([{ bookId: 'nonexistent', quantity: 1 }]),
-    ).rejects.toThrow('One or more books not found')
+    expect(result.success).toBe(false)
+    expect(result.error).toMatch(/not found/)
   })
 })

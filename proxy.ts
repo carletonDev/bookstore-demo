@@ -86,7 +86,7 @@ export async function refreshSession(request: NextRequest): Promise<SessionResul
  * Routes that require an authenticated session.
  * Unauthenticated requests to these paths are redirected to /login.
  */
-const PROTECTED_ROUTES = ['/reports', '/orders']
+const PROTECTED_ROUTES = ['/catalog', '/reports', '/orders']
 
 /**
  * Named "proxy" export — required by Next.js 16 to recognize this file as the
