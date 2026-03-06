@@ -242,6 +242,31 @@ I am separating the OAuth Callback (identity exchange) from the Auth Proxy (sess
 
 ---
 
+## Implementation: Transactional Integrity and Cart UI
+
+### Prompt (User)
+
+> Implement the Cart and Checkout logic for The Codex. State: Create a client-side store (Zustand or Context) for managing the cart (ID, Quantity, Format). UI: Build a CartDrawer using the Catalyst Slide-over (Dialog). Use Catalyst DescriptionList for the order summary. The Snapshot Action: Implement processCheckout. Senior Requirement: It MUST re-fetch the current live price for each book from the database at the moment of execution. Integrity: Save this price into the order_items.purchased_price column to preserve historical data. Authorization: Ensure processCheckout checks for a valid user session before writing to the database.
+
+### Key Decisions / What Changed
+
+- **`stores/cart.ts`** — Zustand store with `persist` middleware (localStorage key: `codex-cart`). State shape: `CartItem { bookId, format, quantity }`. Actions: `addItem` (increments quantity if item+format exists), `removeItem`, `updateQuantity` (minimum 1), `clearCart`, `totalItems` (derived). Keyed on `(bookId, format)` tuple — the same book in different formats is a separate line item.
+- **`components/dialog.tsx`** — Catalyst-style slide-over Dialog. Three exports: `Dialog` (overlay + Escape key + scroll lock), `DialogPanel` (right-anchored panel, `max-w-md`, zinc palette, dark mode), `DialogTitle` (semantic `h2`). Uses `role="dialog"` and `aria-modal="true"` for accessibility. Backdrop click closes.
+- **`components/description-list.tsx`** — Catalyst DescriptionList with three exports: `DescriptionList` (`<dl>` with dividers), `DescriptionTerm` (`<dt>`, zinc-500 medium), `DescriptionDetails` (`<dd>`, zinc-950 / white dark). Used in the cart drawer for the order summary section.
+- **`components/cart-drawer.tsx`** — Client Component combining Dialog (slide-over) and DescriptionList. Receives `bookInfo: Map<string, { title, price }>` from parent (ISP — only the fields needed for display). Renders item list with quantity controls (+/−/Remove), order summary via DescriptionList, and a Checkout button. Uses `useTransition` for the checkout action to show "Processing…" state. Displays success (order ID) or error messages inline.
+- **`lib/queries/orders.ts`** — Facade function `getBookPrices(bookIds)` that fetches live `id, title, price` from the `books` table and returns a `Map<string, BookPriceRow>` for O(1) lookup. Used exclusively by `processCheckout` to snapshot prices.
+- **`lib/actions/checkout.ts`** — `processCheckout` Server Action (Command pattern). Authorization: calls `getCurrentUser()` and rejects if null. Input validation: verifies array structure, string bookIds, and integer quantities ≥ 1. Price snapshot: calls `getBookPrices()` to re-fetch live prices at the moment of execution — never trusts client-submitted prices. Computes `total_amount` from live prices × quantities with `Math.round(n * 100) / 100` to avoid floating-point drift. Inserts into `orders` (status: 'pending') then `order_items` with `purchased_price` set to the live price snapshot. Returns `{ success, orderId }` or `{ success: false, error }`.
+- **`package.json`** — Added `zustand` dependency.
+
+### Architectural Rationale: Price Snapshotting
+
+The `processCheckout` action re-fetches prices from the database at checkout time rather than trusting prices sent from the client. This is a deliberate security and integrity decision:
+1. **Security** — Client-submitted prices can be tampered with. The server is the only authority on pricing.
+2. **Historical integrity** — The `purchased_price` column in `order_items` preserves the exact price at the moment of purchase. Future price changes to the `books` table do not retroactively alter order history.
+3. **Consistency** — The `total_amount` on the `orders` row is always the sum of `purchased_price × quantity` across its items, computed from the same price fetch.
+
+---
+
 ## AI Output I Intentionally Changed
 
 ### Review Aggregates: View → Database Trigger
