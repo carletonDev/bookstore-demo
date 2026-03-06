@@ -1,8 +1,8 @@
-import { createServerClient } from '@/lib/supabase/server'
+import { createServerClient } from "@/lib/supabase/server";
 
 export interface UserStats {
-  booksPurchased: number
-  recentReviewCount: number
+  booksPurchased: number;
+  recentReviewCount: number;
 }
 
 /**
@@ -14,26 +14,26 @@ export interface UserStats {
  * Pattern: Facade — callers never interact with the Supabase client.
  */
 export async function getUserStats(userId: string): Promise<UserStats> {
-  const supabase = await createServerClient()
+  const supabase = await createServerClient();
 
   const [ordersResult, reviewsResult] = await Promise.all([
     supabase
-      .from('order_items')
-      .select('quantity, order:orders!inner(user_id)')
-      .eq('order.user_id', userId),
+      .from("order_items")
+      .select("quantity, order:orders!inner(user_id)")
+      .eq("order.user_id", userId),
     supabase
-      .from('reviews')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId),
-  ])
+      .from("reviews")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId),
+  ]);
 
   const booksPurchased = (ordersResult.data ?? []).reduce(
     (sum, item) => sum + (item.quantity ?? 0),
     0,
-  )
+  );
 
   return {
     booksPurchased,
     recentReviewCount: reviewsResult.count ?? 0,
-  }
+  };
 }

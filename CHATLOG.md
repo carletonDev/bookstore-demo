@@ -521,6 +521,7 @@ Both test files (`checkout.test.ts` and `pagination.test.ts`) use `vi.mock()` to
 ### Verification
 
 All four CI quality gates pass locally:
+
 - `npm run lint` — 0 errors (1 warning: `<img>` vs `<Image>`)
 - `npx tsc --noEmit` — 0 errors
 - `npx prettier --check .` — all files formatted
