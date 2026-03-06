@@ -38,12 +38,12 @@ export async function signInWithGoogle(): Promise<never> {
  *
  * Calls Supabase signOut() which invalidates the session server-side and
  * clears the session cookies via the @supabase/ssr setAll() callback.
- * Redirects to the login page on completion.
+ * Redirects to the public landing page (/) on completion.
  *
  * Pattern: Command (Behavioral) — single responsibility, imperative name.
  */
 export async function signOut(): Promise<never> {
   const supabase = await createServerClient()
   await supabase.auth.signOut()
-  redirect('/login')
+  redirect('/')
 }
