@@ -602,3 +602,36 @@ The "first click fails, second click works" bug has three contributing causes:
 - **`app/login/clear-error-param.tsx`** — New `'use client'` component. Calls `router.replace('/login', { scroll: false })` inside a `useEffect` on mount. Strips `?error=...` from the browser URL history entry once the user has seen the banner. Zero visible output — purely a URL cleanup side-effect.
 
 - **`app/login/page.tsx`** — Imported `ClearErrorParam`. When `errorMessage` is truthy, renders `<Alert>` and `<ClearErrorParam />` together inside a fragment so the URL is cleaned immediately after the banner appears.
+
+---
+
+## Implementation: Database Security and RLS Policy Provisioning
+
+### Prompt (User)
+
+> Provision RLS policies for all tables. Public read for books, authors, publishers, genres, book_authors, book_genres. Reviews readable by everyone, but INSERT/UPDATE/DELETE restricted to auth.uid() = user_id. Orders and order_items restricted to own data. Do NOT use ALTER TABLE ... ENABLE ROW LEVEL SECURITY.
+
+### Key Decisions / What Changed
+
+- **`migrations/0003_rls_policies.sql`** — New migration containing all `CREATE POLICY` statements. No `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` statements — the Supabase event trigger handles that on table creation.
+
+**Policy matrix implemented:**
+
+| Table         | anon SELECT | auth SELECT | auth INSERT       | auth UPDATE  | auth DELETE  |
+|---------------|:-----------:|:-----------:|:-----------------:|:------------:|:------------:|
+| publishers    | ✓           | ✓           |                   |              |              |
+| authors       | ✓           | ✓           |                   |              |              |
+| genres        | ✓           | ✓           |                   |              |              |
+| books         | ✓           | ✓           |                   |              |              |
+| book_authors  | ✓           | ✓           |                   |              |              |
+| book_genres   | ✓           | ✓           |                   |              |              |
+| reviews       | ✓           | ✓           | own row           | own row      | own row      |
+| orders        |             | ✓           | own row           |              |              |
+| order_items   |             | ✓           | via parent order  |              |              |
+
+**Design decisions:**
+
+- **Public catalog tables** use `USING (true)` with `TO anon, authenticated` — both roles get unrestricted SELECT. This enables unauthenticated browsing of the book catalog if needed in future.
+- **Reviews** — `USING` + `WITH CHECK` on `auth.uid() = user_id` for UPDATE prevents a user from re-assigning a review to another user. The table-level `UNIQUE (book_id, user_id)` enforces one-review-per-book at the DB layer; the INSERT policy enforces it at the auth layer.
+- **Orders** — No UPDATE or DELETE policies. Status transitions (`pending → confirmed → shipped`) are service-role operations only and must never be accessible to the client.
+- **order_items** — No `user_id` column; ownership is derived via a correlated subquery against `orders.user_id`. Both SELECT and INSERT policies use `EXISTS (SELECT 1 FROM orders WHERE orders.id = order_items.order_id AND orders.user_id = auth.uid())`. No UPDATE or DELETE — `purchased_price` is a historical price snapshot and is immutable by design.
