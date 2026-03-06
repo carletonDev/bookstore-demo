@@ -355,3 +355,51 @@ $$;
 - All three URL helpers (`getAuthCallbackUrl`, `getAuthProxyUrl`, `getAuthCallbackUrlWithNext`) now delegate to `getURL()` — single source of truth preserved.
 - **`lib/actions/auth.ts`** — No change required; it already calls `getAuthCallbackUrl()` from `url.ts`. The fix propagates automatically.
 - **`proxy.ts`** — Confirmed no hardcoded URLs. All cookie and session logic operates on `request.cookies` and `NextResponse` objects derived from the incoming request — fully relative, environment-agnostic.
+
+---
+
+## Implementation: Reporting and Quality Assurance
+
+### Prompt (User)
+
+> Implement Reporting, History, and Vitest tests. Reporting: Build app/reports/page.tsx showing 'Global Sales Stats' and a 'Genre Breakdown' using Catalyst Table and the view_genre_sales Postgres view. Order History: Build app/orders/page.tsx displaying previous orders using Catalyst DescriptionList with historical price. Testing: Create Vitest tests for encodeCursor/decodeCursor pagination logic and processCheckout price snapshot. Authorization: Protect these routes in proxy.ts. Documentation in CHATLOG.md.
+
+### Key Decisions / What Changed
+
+- **`migrations/0002_view_genre_sales.sql`** — Created Postgres VIEW `view_genre_sales` that joins `genres -> book_genres -> order_items -> orders` to aggregate `order_count`, `total_units_sold`, and `total_revenue` per genre. Uses LEFT JOINs so genres with zero sales still appear. Ordered by `total_revenue DESC`.
+
+- **`types/database.ts`** — Added `GenreSalesRow` interface (maps 1:1 to the view columns) and `GlobalSalesStats` interface (aggregated totals across all genres). Placed in a new "Reporting" section between Pagination and Search.
+
+- **`components/table.tsx`** — Catalyst Table component suite: `Table`, `TableHead`, `TableBody`, `TableRow`, `TableHeader`, `TableCell`. Zinc typography, responsive overflow, dark mode support. Follows Catalyst design language.
+
+- **`components/description-list.tsx`** — Catalyst DescriptionList component suite: `DescriptionList`, `DescriptionTerm`, `DescriptionDetails`. Divider-separated layout with zinc typography.
+
+- **`lib/queries/reports.ts`** — Facade over the `view_genre_sales` view. Exports `getGenreSales()` (fetches all genre rows) and `aggregateGlobalStats()` (pure function that reduces genre rows into global totals).
+
+- **`lib/queries/orders.ts`** — Facade for order history. `getOrderHistory(userId)` fetches orders with nested `order_items -> books` using Adapter pattern to map raw PostgREST shape to `OrderWithItems[]`. Uses `purchased_price` (historical snapshot), never live `books.price`.
+
+- **`lib/actions/checkout.ts`** — `processCheckout` Server Action (Command pattern). Validates cart items at the boundary, authenticates via Supabase session, snapshots current `books.price` from the database, creates `orders` row with computed `total_amount`, inserts `order_items` with `purchased_price` = snapshot. The client never controls the price.
+
+- **`app/reports/page.tsx`** — Server Component. Calls `getGenreSales()` and `aggregateGlobalStats()`. Renders "Global Sales Stats" as three stat cards (total revenue, units sold, orders) and "Genre Breakdown" as a Catalyst Table with genre name, order count, units sold, and revenue columns. Currency formatted via `Intl.NumberFormat`.
+
+- **`app/orders/page.tsx`** — Server Component. Calls `getCurrentUser()` (redirects to `/login` if null), then `getOrderHistory(userId)`. Renders each order as a card with status badge, Catalyst DescriptionList showing date, total, and line items with `purchased_price` (historical price, not current).
+
+- **`proxy.ts`** — Refactored `refreshSession()` to return `{ response, user }` instead of just `response`. Added `PROTECTED_ROUTES = ['/reports', '/orders']`. The `proxy()` export now checks if the requested path matches a protected route and redirects unauthenticated users to `/login`.
+
+- **`vitest.config.ts`** — Created Vitest configuration with `@/*` path alias matching `tsconfig.json`.
+
+- **`package.json`** — Added `vitest` as devDependency, added `"test": "vitest run"` script.
+
+- **`__tests__/pagination.test.ts`** — 12 tests covering:
+  - `encodeCursor`: base64url format, round-trip encoding
+  - `decodeCursor`: round-trip decoding, malformed input (bad base64, wrong JSON shape, missing fields, non-string fields), edge cases (empty strings, special characters)
+  - `buildCursorFilter`: correct PostgREST filter string, double-quote escaping, backslash escaping
+
+- **`__tests__/checkout.test.ts`** — 7 tests covering:
+  - Input validation: empty cart, invalid quantity, missing bookId
+  - Authentication: throws when user is not authenticated
+  - Price snapshot: verifies `purchased_price` comes from `books.price` on the server, not from client input
+  - Multi-item total: verifies total is computed correctly from multiple items with different prices
+  - Missing books: throws when a book is not found in the database
+
+- **All 19 tests pass** (`vitest run`: 2 test files, 19 tests, 0 failures).

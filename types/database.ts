@@ -203,6 +203,28 @@ export interface PaginatedResult<T> {
 
 
 // ---------------------------------------------------------------------------
+// Reporting — view_genre_sales Postgres view
+// ---------------------------------------------------------------------------
+
+/** Row shape returned by the view_genre_sales Postgres view. */
+export interface GenreSalesRow {
+  genre_id: string;
+  genre_name: string;
+  genre_slug: string;
+  order_count: number;
+  total_units_sold: number;
+  total_revenue: number;          // NUMERIC → number
+}
+
+/** Global sales stats aggregated from all genre rows. */
+export interface GlobalSalesStats {
+  totalRevenue: number;
+  totalUnitsSold: number;
+  totalOrders: number;
+}
+
+
+// ---------------------------------------------------------------------------
 // Search
 // ---------------------------------------------------------------------------
 
