@@ -11,29 +11,23 @@
 //  - rating_avg is number | null — NULL when a book has zero reviews.
 // =============================================================================
 
-
 // ---------------------------------------------------------------------------
 // Enums / Literal Types
 // ---------------------------------------------------------------------------
 
 /** Maps to the `order_status` Postgres ENUM. */
 export type OrderStatus =
-  | 'pending'
-  | 'confirmed'
-  | 'shipped'
-  | 'delivered'
-  | 'cancelled';
+  | "pending"
+  | "confirmed"
+  | "shipped"
+  | "delivered"
+  | "cancelled";
 
 /** Maps to the CHECK constraint on `books.formats`. */
-export type BookFormat =
-  | 'hardcover'
-  | 'softcover'
-  | 'audiobook'
-  | 'ereader';
+export type BookFormat = "hardcover" | "softcover" | "audiobook" | "ereader";
 
 /** Valid star rating values — maps to `reviews.rating` CHECK (rating BETWEEN 1 AND 5). */
 export type StarRating = 1 | 2 | 3 | 4 | 5;
-
 
 // ---------------------------------------------------------------------------
 // Base Interfaces — one per table, columns map 1:1 to DDL
@@ -65,24 +59,24 @@ export interface Book {
   title: string;
   isbn: string | null;
   publisher_id: string | null;
-  price: number;                  // NUMERIC(10,2)
-  formats: BookFormat[];          // TEXT[] with CHECK constraint
+  price: number; // NUMERIC(10,2)
+  formats: BookFormat[]; // TEXT[] with CHECK constraint
   description: string | null;
   cover_image_url: string | null;
-  published_at: string | null;    // DATE → ISO 8601 date string (YYYY-MM-DD)
+  published_at: string | null; // DATE → ISO 8601 date string (YYYY-MM-DD)
 
   // Denormalized review aggregates — maintained by Postgres trigger.
   // Direct writes to these columns are prohibited; use the reviews table.
-  rating_sum: number;             // Running total of all rating values
-  rating_count: number;           // Total number of reviews
-  rating_avg: number | null;      // GENERATED ALWAYS AS — NULL when rating_count = 0
+  rating_sum: number; // Running total of all rating values
+  rating_count: number; // Total number of reviews
+  rating_avg: number | null; // GENERATED ALWAYS AS — NULL when rating_count = 0
 
   // Full-text search vector — maintained by Postgres trigger.
   // Not typically selected in application queries; used for FTS filtering only.
   search_vector?: string;
 
-  created_at: string;             // TIMESTAMPTZ → ISO 8601
-  updated_at: string;             // TIMESTAMPTZ → ISO 8601
+  created_at: string; // TIMESTAMPTZ → ISO 8601
+  updated_at: string; // TIMESTAMPTZ → ISO 8601
 }
 
 export interface Review {
@@ -92,17 +86,17 @@ export interface Review {
   rating: StarRating;
   title: string | null;
   body: string | null;
-  created_at: string;             // TIMESTAMPTZ → ISO 8601
-  updated_at: string;             // TIMESTAMPTZ → ISO 8601
+  created_at: string; // TIMESTAMPTZ → ISO 8601
+  updated_at: string; // TIMESTAMPTZ → ISO 8601
 }
 
 export interface Order {
   id: string;
   user_id: string;
   status: OrderStatus;
-  total_amount: number;           // NUMERIC(10,2)
-  created_at: string;             // TIMESTAMPTZ → ISO 8601
-  updated_at: string;             // TIMESTAMPTZ → ISO 8601
+  total_amount: number; // NUMERIC(10,2)
+  created_at: string; // TIMESTAMPTZ → ISO 8601
+  updated_at: string; // TIMESTAMPTZ → ISO 8601
 }
 
 export interface OrderItem {
@@ -112,10 +106,9 @@ export interface OrderItem {
   quantity: number;
   /** Snapshot of books.price at the moment of purchase. Never derive order
    *  history totals from the live books.price — use this field. */
-  purchased_price: number;        // NUMERIC(10,2)
-  created_at: string;             // TIMESTAMPTZ → ISO 8601
+  purchased_price: number; // NUMERIC(10,2)
+  created_at: string; // TIMESTAMPTZ → ISO 8601
 }
-
 
 // ---------------------------------------------------------------------------
 // Join Table Row Types (rarely needed directly, included for completeness)
@@ -131,7 +124,6 @@ export interface BookGenre {
   genre_id: string;
 }
 
-
 // ---------------------------------------------------------------------------
 // Enriched / Relational Types — for common joined queries
 // ---------------------------------------------------------------------------
@@ -146,7 +138,7 @@ export interface BookWithRelations extends Book {
 
 /** Slim book projection used inside order line items.
  *  Only the fields needed to render an order summary are included (ISP). */
-export type OrderItemBook = Pick<Book, 'id' | 'title' | 'cover_image_url'>;
+export type OrderItemBook = Pick<Book, "id" | "title" | "cover_image_url">;
 
 /** Order line item with its nested book projection. */
 export interface OrderItemWithBook extends OrderItem {
@@ -163,26 +155,25 @@ export interface OrderWithItems extends Order {
  *  (description, search_vector, raw aggregate columns) not needed for listing. */
 export type BookCatalogItem = Pick<
   Book,
-  | 'id'
-  | 'title'
-  | 'isbn'
-  | 'publisher_id'
-  | 'price'
-  | 'formats'
-  | 'cover_image_url'
-  | 'published_at'
-  | 'rating_avg'
-  | 'rating_count'
+  | "id"
+  | "title"
+  | "isbn"
+  | "publisher_id"
+  | "price"
+  | "formats"
+  | "cover_image_url"
+  | "published_at"
+  | "rating_avg"
+  | "rating_count"
 >;
 
 /** Catalog card with genre and author data for filter/display — avoids
  *  over-fetching description and search_vector on list views. */
 export interface BookCatalogItemWithRelations extends BookCatalogItem {
-  publisher: Pick<Publisher, 'id' | 'name'> | null;
-  authors: Pick<Author, 'id' | 'first_name' | 'last_name'>[];
+  publisher: Pick<Publisher, "id" | "name"> | null;
+  authors: Pick<Author, "id" | "first_name" | "last_name">[];
   genres: Genre[];
 }
-
 
 // ---------------------------------------------------------------------------
 // Pagination — cursor-based (keyset) pagination envelope
@@ -201,7 +192,6 @@ export interface PaginatedResult<T> {
   hasMore: boolean;
 }
 
-
 // ---------------------------------------------------------------------------
 // Reporting — view_genre_sales Postgres view
 // ---------------------------------------------------------------------------
@@ -213,7 +203,7 @@ export interface GenreSalesRow {
   genre_slug: string;
   order_count: number;
   total_units_sold: number;
-  total_revenue: number;          // NUMERIC → number
+  total_revenue: number; // NUMERIC → number
 }
 
 /** Global sales stats aggregated from all genre rows. */
@@ -222,7 +212,6 @@ export interface GlobalSalesStats {
   totalUnitsSold: number;
   totalOrders: number;
 }
-
 
 // ---------------------------------------------------------------------------
 // Search

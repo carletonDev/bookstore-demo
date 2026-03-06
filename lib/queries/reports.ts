@@ -1,5 +1,5 @@
-import { createServerClient } from '@/lib/supabase/server'
-import type { GenreSalesRow, GlobalSalesStats } from '@/types/database'
+import { createServerClient } from "@/lib/supabase/server";
+import type { GenreSalesRow, GlobalSalesStats } from "@/types/database";
 
 /**
  * Fetches genre-level sales data from the view_genre_sales Postgres view.
@@ -8,18 +8,20 @@ import type { GenreSalesRow, GlobalSalesStats } from '@/types/database'
  * The view handles all joins (order_items → books → book_genres → genres).
  */
 export async function getGenreSales(): Promise<GenreSalesRow[]> {
-  const supabase = await createServerClient()
+  const supabase = await createServerClient();
 
   const { data, error } = await supabase
-    .from('view_genre_sales')
-    .select('genre_id, genre_name, genre_slug, order_count, total_units_sold, total_revenue')
-    .order('total_revenue', { ascending: false })
+    .from("view_genre_sales")
+    .select(
+      "genre_id, genre_name, genre_slug, order_count, total_units_sold, total_revenue",
+    )
+    .order("total_revenue", { ascending: false });
 
   if (error) {
-    throw new Error(`getGenreSales query failed: ${error.message}`)
+    throw new Error(`getGenreSales query failed: ${error.message}`);
   }
 
-  return (data ?? []) as GenreSalesRow[]
+  return (data ?? []) as GenreSalesRow[];
 }
 
 /**
@@ -34,5 +36,5 @@ export function aggregateGlobalStats(rows: GenreSalesRow[]): GlobalSalesStats {
       totalOrders: acc.totalOrders + Number(row.order_count),
     }),
     { totalRevenue: 0, totalUnitsSold: 0, totalOrders: 0 },
-  )
+  );
 }

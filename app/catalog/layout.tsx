@@ -1,10 +1,10 @@
-import { redirect } from 'next/navigation'
-import Link from 'next/link'
-import { Heading } from '@/components/heading'
-import { Text } from '@/components/text'
-import { Button } from '@/components/button'
-import { signOut } from '@/lib/actions/auth'
-import { getCurrentUserProfile } from '@/lib/utils/currentUserProfile'
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { Heading } from "@/components/heading";
+import { Text } from "@/components/text";
+import { Button } from "@/components/button";
+import { signOut } from "@/lib/actions/auth";
+import { getCurrentUserProfile } from "@/lib/utils/currentUserProfile";
 
 /**
  * Catalog layout — Catalyst SidebarLayout shell.
@@ -15,11 +15,11 @@ import { getCurrentUserProfile } from '@/lib/utils/currentUserProfile'
 export default async function CatalogLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
-  const profile = await getCurrentUserProfile()
+  const profile = await getCurrentUserProfile();
   if (!profile) {
-    redirect('/login')
+    redirect("/login");
   }
 
   return (
@@ -58,7 +58,11 @@ export default async function CatalogLayout({
           {/* Sign Out */}
           <div className="border-t border-zinc-200 pt-4 dark:border-zinc-700">
             <form action={signOut}>
-              <Button plain type="submit" className="w-full justify-start text-xs">
+              <Button
+                plain
+                type="submit"
+                className="w-full justify-start text-xs"
+              >
                 Sign Out
               </Button>
             </form>
@@ -71,9 +75,14 @@ export default async function CatalogLayout({
         {/* Top bar */}
         <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
           <div className="flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-            <Heading level={3} className="lg:hidden">The Codex</Heading>
+            <Heading level={3} className="lg:hidden">
+              The Codex
+            </Heading>
             <Text className="text-sm">
-              Welcome, <span className="font-medium text-zinc-950 dark:text-white">{profile.fullName}</span>
+              Welcome,{" "}
+              <span className="font-medium text-zinc-950 dark:text-white">
+                {profile.fullName}
+              </span>
             </Text>
             <form action={signOut} className="lg:hidden">
               <Button plain type="submit" className="text-xs">
@@ -89,5 +98,5 @@ export default async function CatalogLayout({
         </div>
       </div>
     </div>
-  )
+  );
 }

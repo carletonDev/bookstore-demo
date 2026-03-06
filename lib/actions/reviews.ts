@@ -1,15 +1,15 @@
-'use server'
+"use server";
 
-import { createServerClient } from '@/lib/supabase/server'
-import { getCurrentUser } from '@/lib/utils/currentUser'
-import type { StarRating } from '@/types/database'
+import { createServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/utils/currentUser";
+import type { StarRating } from "@/types/database";
 
 interface ReviewState {
-  success: boolean
-  error: string | null
+  success: boolean;
+  error: string | null;
 }
 
-const VALID_RATINGS = new Set<number>([1, 2, 3, 4, 5])
+const VALID_RATINGS = new Set<number>([1, 2, 3, 4, 5]);
 
 /**
  * Server Action: submitReview
@@ -29,41 +29,47 @@ export async function submitReview(
   _prevState: ReviewState,
   formData: FormData,
 ): Promise<ReviewState> {
-  const userId = await getCurrentUser()
+  const userId = await getCurrentUser();
   if (!userId) {
-    return { success: false, error: 'You must be signed in to submit a review.' }
+    return {
+      success: false,
+      error: "You must be signed in to submit a review.",
+    };
   }
 
-  const bookId = formData.get('bookId')
-  const ratingRaw = formData.get('rating')
+  const bookId = formData.get("bookId");
+  const ratingRaw = formData.get("rating");
 
-  if (typeof bookId !== 'string' || !bookId.trim()) {
-    return { success: false, error: 'Missing book identifier.' }
+  if (typeof bookId !== "string" || !bookId.trim()) {
+    return { success: false, error: "Missing book identifier." };
   }
 
-  const ratingNum = Number(ratingRaw)
+  const ratingNum = Number(ratingRaw);
   if (!VALID_RATINGS.has(ratingNum)) {
-    return { success: false, error: 'Please select a rating between 1 and 5.' }
+    return { success: false, error: "Please select a rating between 1 and 5." };
   }
 
-  const rating = ratingNum as StarRating
+  const rating = ratingNum as StarRating;
 
-  const supabase = await createServerClient()
+  const supabase = await createServerClient();
 
   const { error } = await supabase
-    .from('reviews')
-    .insert({ book_id: bookId, user_id: userId, rating })
+    .from("reviews")
+    .insert({ book_id: bookId, user_id: userId, rating });
 
   if (error) {
     // Postgres unique violation — user has already reviewed this book
-    if (error.code === '23505') {
+    if (error.code === "23505") {
       return {
         success: false,
-        error: 'You have already reviewed this book.',
-      }
+        error: "You have already reviewed this book.",
+      };
     }
-    return { success: false, error: 'Failed to submit review. Please try again.' }
+    return {
+      success: false,
+      error: "Failed to submit review. Please try again.",
+    };
   }
 
-  return { success: true, error: null }
+  return { success: true, error: null };
 }

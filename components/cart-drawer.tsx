@@ -1,30 +1,34 @@
-'use client'
+"use client";
 
-import { useTransition, useState, useCallback } from 'react'
-import { SlideOver, SlideOverPanel, SlideOverTitle } from '@/components/slide-over'
+import { useTransition, useState, useCallback } from "react";
+import {
+  SlideOver,
+  SlideOverPanel,
+  SlideOverTitle,
+} from "@/components/slide-over";
 import {
   DescriptionList,
   DescriptionTerm,
   DescriptionDetails,
-} from '@/components/description-list'
-import { Button } from '@/components/button'
-import { useCartStore, type CartItem } from '@/stores/cart'
-import { processCheckout } from '@/lib/actions/checkout'
+} from "@/components/description-list";
+import { Button } from "@/components/button";
+import { useCartStore, type CartItem } from "@/stores/cart";
+import { processCheckout } from "@/lib/actions/checkout";
 
 type CartDrawerProps = {
-  open: boolean
-  onClose: () => void
+  open: boolean;
+  onClose: () => void;
   /** Map of bookId → { title, price } for display. Passed from the parent
    *  that has access to book data. */
-  bookInfo: Map<string, { title: string; price: number }>
-}
+  bookInfo: Map<string, { title: string; price: number }>;
+};
 
 function formatPrice(amount: number): string {
-  return `$${amount.toFixed(2)}`
+  return `$${amount.toFixed(2)}`;
 }
 
 function formatLabel(item: CartItem): string {
-  return `${item.format} × ${item.quantity}`
+  return `${item.format} × ${item.quantity}`;
 }
 
 /**
@@ -35,22 +39,22 @@ function formatLabel(item: CartItem): string {
  * which re-fetches live prices from the database.
  */
 export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
-  const items = useCartStore((s) => s.items)
-  const removeItem = useCartStore((s) => s.removeItem)
-  const updateQuantity = useCartStore((s) => s.updateQuantity)
-  const clearCart = useCartStore((s) => s.clearCart)
+  const items = useCartStore((s) => s.items);
+  const removeItem = useCartStore((s) => s.removeItem);
+  const updateQuantity = useCartStore((s) => s.updateQuantity);
+  const clearCart = useCartStore((s) => s.clearCart);
 
-  const [isPending, startTransition] = useTransition()
-  const [checkoutError, setCheckoutError] = useState<string | null>(null)
-  const [orderId, setOrderId] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition();
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
 
   const subtotal = items.reduce((sum, item) => {
-    const info = bookInfo.get(item.bookId)
-    return sum + (info ? info.price * item.quantity : 0)
-  }, 0)
+    const info = bookInfo.get(item.bookId);
+    return sum + (info ? info.price * item.quantity : 0);
+  }, 0);
 
   const handleCheckout = useCallback(() => {
-    setCheckoutError(null)
+    setCheckoutError(null);
     startTransition(async () => {
       const result = await processCheckout(
         items.map((item) => ({
@@ -58,16 +62,16 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
           format: item.format,
           quantity: item.quantity,
         })),
-      )
+      );
 
       if (result.success) {
-        setOrderId(result.orderId ?? null)
-        clearCart()
+        setOrderId(result.orderId ?? null);
+        clearCart();
       } else {
-        setCheckoutError(result.error ?? 'Checkout failed.')
+        setCheckoutError(result.error ?? "Checkout failed.");
       }
-    })
-  }, [items, clearCart])
+    });
+  }, [items, clearCart]);
 
   return (
     <SlideOver open={open} onClose={onClose}>
@@ -111,9 +115,9 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
           ) : (
             <ul className="divide-y divide-zinc-200 dark:divide-zinc-700">
               {items.map((item) => {
-                const info = bookInfo.get(item.bookId)
-                const title = info?.title ?? 'Unknown Book'
-                const price = info?.price ?? 0
+                const info = bookInfo.get(item.bookId);
+                const title = info?.title ?? "Unknown Book";
+                const price = info?.price ?? 0;
 
                 return (
                   <li
@@ -140,7 +144,11 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
                         className="!px-2 !py-1 text-xs"
                         onClick={() =>
                           item.quantity > 1
-                            ? updateQuantity(item.bookId, item.format, item.quantity - 1)
+                            ? updateQuantity(
+                                item.bookId,
+                                item.format,
+                                item.quantity - 1,
+                              )
                             : removeItem(item.bookId, item.format)
                         }
                         aria-label={`Decrease quantity of ${title}`}
@@ -154,7 +162,11 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
                         plain
                         className="!px-2 !py-1 text-xs"
                         onClick={() =>
-                          updateQuantity(item.bookId, item.format, item.quantity + 1)
+                          updateQuantity(
+                            item.bookId,
+                            item.format,
+                            item.quantity + 1,
+                          )
                         }
                         aria-label={`Increase quantity of ${title}`}
                       >
@@ -170,7 +182,7 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
                       </Button>
                     </div>
                   </li>
-                )
+                );
               })}
             </ul>
           )}
@@ -181,20 +193,21 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
           <div className="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-700">
             <DescriptionList>
               {items.map((item) => {
-                const info = bookInfo.get(item.bookId)
+                const info = bookInfo.get(item.bookId);
                 return (
                   <div
                     key={`${item.bookId}-${item.format}-summary`}
                     className="flex items-center justify-between py-2"
                   >
                     <DescriptionTerm>
-                      {info?.title ?? 'Unknown'}
+                      {info?.title ?? "Unknown"}
                     </DescriptionTerm>
                     <DescriptionDetails>
-                      {formatLabel(item)} = {formatPrice((info?.price ?? 0) * item.quantity)}
+                      {formatLabel(item)} ={" "}
+                      {formatPrice((info?.price ?? 0) * item.quantity)}
                     </DescriptionDetails>
                   </div>
-                )
+                );
               })}
 
               <div className="flex items-center justify-between py-3">
@@ -213,12 +226,12 @@ export function CartDrawer({ open, onClose, bookInfo }: CartDrawerProps) {
                 onClick={handleCheckout}
                 disabled={isPending}
               >
-                {isPending ? 'Processing…' : 'Checkout'}
+                {isPending ? "Processing…" : "Checkout"}
               </Button>
             </div>
           </div>
         )}
       </SlideOverPanel>
     </SlideOver>
-  )
+  );
 }

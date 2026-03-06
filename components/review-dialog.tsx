@@ -1,44 +1,49 @@
-'use client'
+"use client";
 
-import { useState, useActionState } from 'react'
-import { Dialog, DialogTitle, DialogBody, DialogActions } from '@/components/dialog'
-import { Button } from '@/components/button'
-import { Text } from '@/components/text'
-import { Alert } from '@/components/alert'
-import { submitReview } from '@/lib/actions/reviews'
-import type { StarRating } from '@/types/database'
+import { useState, useActionState } from "react";
+import {
+  Dialog,
+  DialogTitle,
+  DialogBody,
+  DialogActions,
+} from "@/components/dialog";
+import { Button } from "@/components/button";
+import { Text } from "@/components/text";
+import { Alert } from "@/components/alert";
+import { submitReview } from "@/lib/actions/reviews";
+import type { StarRating } from "@/types/database";
 
 interface ReviewDialogProps {
-  bookId: string
-  bookTitle: string
+  bookId: string;
+  bookTitle: string;
 }
 
-const STARS: StarRating[] = [1, 2, 3, 4, 5]
+const STARS: StarRating[] = [1, 2, 3, 4, 5];
 
 /**
  * Client Component — collects a star rating via a Catalyst Dialog
  * and submits it using the submitReview Server Action.
  */
 export function ReviewDialog({ bookId, bookTitle }: ReviewDialogProps) {
-  const [open, setOpen] = useState(false)
-  const [selectedRating, setSelectedRating] = useState<StarRating | null>(null)
-  const [hoveredRating, setHoveredRating] = useState<StarRating | null>(null)
+  const [open, setOpen] = useState(false);
+  const [selectedRating, setSelectedRating] = useState<StarRating | null>(null);
+  const [hoveredRating, setHoveredRating] = useState<StarRating | null>(null);
 
   const [state, formAction, isPending] = useActionState(submitReview, {
     success: false,
     error: null,
-  })
+  });
 
   function handleOpen(): void {
-    setSelectedRating(null)
-    setOpen(true)
+    setSelectedRating(null);
+    setOpen(true);
   }
 
   function handleClose(): void {
-    setOpen(false)
+    setOpen(false);
   }
 
-  const displayRating = hoveredRating ?? selectedRating
+  const displayRating = hoveredRating ?? selectedRating;
 
   return (
     <>
@@ -51,7 +56,7 @@ export function ReviewDialog({ bookId, bookTitle }: ReviewDialogProps) {
 
         <form action={formAction}>
           <input type="hidden" name="bookId" value={bookId} />
-          <input type="hidden" name="rating" value={selectedRating ?? ''} />
+          <input type="hidden" name="rating" value={selectedRating ?? ""} />
 
           <DialogBody>
             {state.error && (
@@ -78,13 +83,13 @@ export function ReviewDialog({ bookId, bookTitle }: ReviewDialogProps) {
                   onMouseEnter={() => setHoveredRating(star)}
                   onMouseLeave={() => setHoveredRating(null)}
                   className="text-3xl transition-colors focus:outline-none"
-                  aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
+                  aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
                 >
                   <span
                     className={
                       displayRating && star <= displayRating
-                        ? 'text-amber-400'
-                        : 'text-zinc-300 dark:text-zinc-600'
+                        ? "text-amber-400"
+                        : "text-zinc-300 dark:text-zinc-600"
                     }
                   >
                     ★
@@ -95,7 +100,8 @@ export function ReviewDialog({ bookId, bookTitle }: ReviewDialogProps) {
 
             {selectedRating && (
               <Text className="mt-2 text-xs">
-                You selected {selectedRating} star{selectedRating > 1 ? 's' : ''}
+                You selected {selectedRating} star
+                {selectedRating > 1 ? "s" : ""}
               </Text>
             )}
           </DialogBody>
@@ -104,15 +110,12 @@ export function ReviewDialog({ bookId, bookTitle }: ReviewDialogProps) {
             <Button plain onClick={handleClose} type="button">
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={!selectedRating || isPending}
-            >
-              {isPending ? 'Submitting...' : 'Submit Review'}
+            <Button type="submit" disabled={!selectedRating || isPending}>
+              {isPending ? "Submitting..." : "Submit Review"}
             </Button>
           </DialogActions>
         </form>
       </Dialog>
     </>
-  )
+  );
 }

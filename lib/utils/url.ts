@@ -23,9 +23,9 @@
  */
 export function getURL(): string {
   if (process.env.NEXT_PUBLIC_VERCEL_URL) {
-    return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
+    return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`;
   }
-  return 'http://localhost:3000'
+  return "http://localhost:3000";
 }
 
 /**
@@ -34,7 +34,7 @@ export function getURL(): string {
  * Handler: app/auth/callback/route.ts
  */
 export function getAuthCallbackUrl(): string {
-  return `${getURL()}/auth/callback`
+  return `${getURL()}/auth/callback`;
 }
 
 /**
@@ -43,7 +43,7 @@ export function getAuthCallbackUrl(): string {
  * Handler: app/api/auth/proxy/route.ts
  */
 export function getAuthProxyUrl(): string {
-  return `${getURL()}/api/auth/proxy`
+  return `${getURL()}/api/auth/proxy`;
 }
 
 /**
@@ -51,6 +51,6 @@ export function getAuthProxyUrl(): string {
  * handler can redirect the user to their originally intended page after sign-in.
  */
 export function getAuthCallbackUrlWithNext(next: string): string {
-  const encoded = encodeURIComponent(next.startsWith('/') ? next : `/${next}`)
-  return `${getAuthCallbackUrl()}?next=${encoded}`
+  const encoded = encodeURIComponent(next.startsWith("/") ? next : `/${next}`);
+  return `${getAuthCallbackUrl()}?next=${encoded}`;
 }

@@ -1,8 +1,8 @@
-'use server'
+"use server";
 
-import { createServerClient } from '@/lib/supabase/server'
-import { getAuthCallbackUrl } from '@/lib/utils/url'
-import { redirect } from 'next/navigation'
+import { createServerClient } from "@/lib/supabase/server";
+import { getAuthCallbackUrl } from "@/lib/utils/url";
+import { redirect } from "next/navigation";
 
 /**
  * Server Action: initiate Google OAuth sign-in.
@@ -17,20 +17,20 @@ import { redirect } from 'next/navigation'
  * Pattern: Command (Behavioral) — single responsibility, imperative name.
  */
 export async function signInWithGoogle(): Promise<never> {
-  const supabase = await createServerClient()
+  const supabase = await createServerClient();
 
   const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
+    provider: "google",
     options: {
       redirectTo: getAuthCallbackUrl(),
     },
-  })
+  });
 
   if (error || !data.url) {
-    redirect('/login?error=oauth_init_failed')
+    redirect("/login?error=oauth_init_failed");
   }
 
-  redirect(data.url)
+  redirect(data.url);
 }
 
 /**
@@ -43,7 +43,7 @@ export async function signInWithGoogle(): Promise<never> {
  * Pattern: Command (Behavioral) — single responsibility, imperative name.
  */
 export async function signOut(): Promise<never> {
-  const supabase = await createServerClient()
-  await supabase.auth.signOut()
-  redirect('/')
+  const supabase = await createServerClient();
+  await supabase.auth.signOut();
+  redirect("/");
 }

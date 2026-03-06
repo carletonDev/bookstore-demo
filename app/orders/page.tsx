@@ -1,37 +1,37 @@
-import { redirect } from 'next/navigation'
-import { Heading } from '@/components/heading'
-import { Text } from '@/components/text'
+import { redirect } from "next/navigation";
+import { Heading } from "@/components/heading";
+import { Text } from "@/components/text";
 import {
   DescriptionList,
   DescriptionTerm,
   DescriptionDetails,
-} from '@/components/description-list'
-import { getCurrentUser } from '@/lib/utils/currentUser'
-import { getOrderHistory } from '@/lib/queries/orders'
-import type { OrderWithItems } from '@/types/database'
+} from "@/components/description-list";
+import { getCurrentUser } from "@/lib/utils/currentUser";
+import { getOrderHistory } from "@/lib/queries/orders";
+import type { OrderWithItems } from "@/types/database";
 
 function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount)
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(amount);
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
+  return new Date(iso).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 }
 
 export default async function OrdersPage() {
-  const userId = await getCurrentUser()
+  const userId = await getCurrentUser();
   if (!userId) {
-    redirect('/login')
+    redirect("/login");
   }
 
-  const orders = await getOrderHistory(userId)
+  const orders = await getOrderHistory(userId);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 space-y-10">
@@ -47,7 +47,7 @@ export default async function OrdersPage() {
         </div>
       )}
     </main>
-  )
+  );
 }
 
 function OrderCard({ order }: { order: OrderWithItems }) {
@@ -65,7 +65,9 @@ function OrderCard({ order }: { order: OrderWithItems }) {
         <DescriptionDetails>{formatDate(order.created_at)}</DescriptionDetails>
 
         <DescriptionTerm>Total</DescriptionTerm>
-        <DescriptionDetails>{formatCurrency(order.total_amount)}</DescriptionDetails>
+        <DescriptionDetails>
+          {formatCurrency(order.total_amount)}
+        </DescriptionDetails>
 
         <DescriptionTerm>Items</DescriptionTerm>
         <DescriptionDetails>
@@ -84,5 +86,5 @@ function OrderCard({ order }: { order: OrderWithItems }) {
         </DescriptionDetails>
       </DescriptionList>
     </div>
-  )
+  );
 }

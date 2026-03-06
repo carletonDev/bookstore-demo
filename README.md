@@ -147,15 +147,15 @@ The unified search input wraps its fetch in `useTransition`. While `isPending` i
 
 ## 5. Assumptions & Tradeoffs Due to Timebox
 
-| Area | Assumption / Tradeoff |
-|---|---|
-| Authentication | Google OAuth via Supabase is implemented. The `proxy.ts` session pattern replaces the earlier cookie-based user selector. Production hardening (rate limiting, refresh token rotation policy) is out of scope. |
-| Formats pricing | All formats share one price. A `TEXT[]` column is used; per-format pricing would require a schema migration. |
-| Search relevance | `plainto_tsquery` with `ts_rank` is used. More sophisticated ranking (BM25, semantic search via pgvector) is out of scope. |
-| Image storage | `cover_image_url` stores a URL string. Supabase Storage bucket setup and upload flow are not implemented. |
-| Order fulfillment | Order status transitions (confirmed → shipped → delivered) have no backend workflow. The `order_status` enum is in place for future use. |
-| Test coverage | Vitest unit tests cover business logic (cursor encoding, price calculations). Integration and E2E tests are not in scope. |
-| Seed data | No seed script is provided. The 10,000-book catalog and 1,000-user assumptions are architectural, not implemented. |
+| Area              | Assumption / Tradeoff                                                                                                                                                                                          |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Authentication    | Google OAuth via Supabase is implemented. The `proxy.ts` session pattern replaces the earlier cookie-based user selector. Production hardening (rate limiting, refresh token rotation policy) is out of scope. |
+| Formats pricing   | All formats share one price. A `TEXT[]` column is used; per-format pricing would require a schema migration.                                                                                                   |
+| Search relevance  | `plainto_tsquery` with `ts_rank` is used. More sophisticated ranking (BM25, semantic search via pgvector) is out of scope.                                                                                     |
+| Image storage     | `cover_image_url` stores a URL string. Supabase Storage bucket setup and upload flow are not implemented.                                                                                                      |
+| Order fulfillment | Order status transitions (confirmed → shipped → delivered) have no backend workflow. The `order_status` enum is in place for future use.                                                                       |
+| Test coverage     | Vitest unit tests cover business logic (cursor encoding, price calculations). Integration and E2E tests are not in scope.                                                                                      |
+| Seed data         | No seed script is provided. The 10,000-book catalog and 1,000-user assumptions are architectural, not implemented.                                                                                             |
 
 ---
 

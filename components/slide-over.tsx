@@ -1,24 +1,24 @@
-'use client'
+"use client";
 
-import type React from 'react'
-import { useEffect, useRef } from 'react'
+import type React from "react";
+import { useEffect, useRef } from "react";
 
 type SlideOverProps = {
-  open: boolean
-  onClose: () => void
-  children: React.ReactNode
-  className?: string
-}
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  className?: string;
+};
 
 type SlideOverPanelProps = {
-  children: React.ReactNode
-  className?: string
-}
+  children: React.ReactNode;
+  className?: string;
+};
 
 type SlideOverTitleProps = {
-  children: React.ReactNode
-  className?: string
-}
+  children: React.ReactNode;
+  className?: string;
+};
 
 /**
  * Catalyst-style slide-over panel.
@@ -26,29 +26,38 @@ type SlideOverTitleProps = {
  * Opens from the right edge of the viewport with a backdrop overlay.
  * Matches the Catalyst design language: zinc palette, ring borders, dark mode.
  */
-export function SlideOver({ open, onClose, children, className = '' }: SlideOverProps) {
-  const backdropRef = useRef<HTMLDivElement>(null)
+export function SlideOver({
+  open,
+  onClose,
+  children,
+  className = "",
+}: SlideOverProps) {
+  const backdropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open) return
+    if (!open) return;
 
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
+      if (e.key === "Escape") onClose();
     }
 
-    document.addEventListener('keydown', handleKeyDown)
-    document.body.style.overflow = 'hidden'
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden";
 
     return () => {
-      document.removeEventListener('keydown', handleKeyDown)
-      document.body.style.overflow = ''
-    }
-  }, [open, onClose])
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [open, onClose]);
 
-  if (!open) return null
+  if (!open) return null;
 
   return (
-    <div className={`fixed inset-0 z-50 ${className}`.trim()} role="dialog" aria-modal="true">
+    <div
+      className={`fixed inset-0 z-50 ${className}`.trim()}
+      role="dialog"
+      aria-modal="true"
+    >
       {/* Backdrop */}
       <div
         ref={backdropRef}
@@ -62,13 +71,16 @@ export function SlideOver({ open, onClose, children, className = '' }: SlideOver
         {children}
       </div>
     </div>
-  )
+  );
 }
 
 /**
  * Panel content area for the slide-over.
  */
-export function SlideOverPanel({ children, className = '' }: SlideOverPanelProps) {
+export function SlideOverPanel({
+  children,
+  className = "",
+}: SlideOverPanelProps) {
   return (
     <div
       className={`w-screen max-w-md transform bg-white shadow-xl transition-transform dark:bg-zinc-900 ${className}`.trim()}
@@ -77,18 +89,21 @@ export function SlideOverPanel({ children, className = '' }: SlideOverPanelProps
         {children}
       </div>
     </div>
-  )
+  );
 }
 
 /**
  * Title element for the slide-over.
  */
-export function SlideOverTitle({ children, className = '' }: SlideOverTitleProps) {
+export function SlideOverTitle({
+  children,
+  className = "",
+}: SlideOverTitleProps) {
   return (
     <h2
       className={`text-lg/7 font-semibold text-zinc-950 dark:text-white ${className}`.trim()}
     >
       {children}
     </h2>
-  )
+  );
 }
