@@ -31,7 +31,7 @@ export default async function Home(): Promise<React.ReactElement> {
             The Codex
           </Heading>
           <Text className="text-lg text-zinc-400">
-            Technical Manuscripts for the Modern Engineer.
+            The Online Bookstore Demo
           </Text>
         </div>
 
