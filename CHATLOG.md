@@ -697,3 +697,5 @@ The "first click fails, second click works" bug has three contributing causes:
 - **`lib/queries/reports.ts`** — Added `getGlobalSalesStats()` that sums `total_sold` and `total_revenue` directly from the `books` table and counts orders from the `orders` table. This eliminates double-counting that occurred when a book belonged to multiple genres. Marked `aggregateGlobalStats()` as `@deprecated`.
 
 - **`lib/actions/checkout.ts`** — Added `revalidatePath("/reports")` and `revalidatePath("/orders")` after successful order placement so Next.js full-route cache is busted for both pages.
+
+- **`__tests__/checkout.test.ts`** — Added `vi.mock("next/cache", ...)` to mock `revalidatePath` in the test environment. Without this mock, the two tests that exercise the successful checkout path (`captures price snapshot` and `computes total from multiple items`) threw `Invariant: static generation store missing in revalidatePath` because Next.js's `revalidatePath` requires a server runtime context that does not exist in Vitest.
