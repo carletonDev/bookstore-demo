@@ -24,7 +24,7 @@
 export function getURL() {
   let url =
     process?.env?.NEXT_PUBLIC_SITE_URL ?? // Set this for production
-    process?.env?.NEXT_PUBLIC_VERCEL_URL ?? // Automatically set by Vercel
+    process?.env?.NEXT_PUBLIC_APP_URL ?? // Automatically set by Vercel
     'https://bookstore-demo-ochre.vercel.app/';
 
   // Ensure protocol is present
