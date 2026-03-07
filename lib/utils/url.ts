@@ -21,22 +21,22 @@
  * configuration per environment and was the root cause of the localhost
  * redirect on Vercel deployments.
  */
-export function getURL(): string {
-  if (process.env.NEXT_PUBLIC_VERCEL_URL) {
-    return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`;
-  }
-  return "http://localhost:3000";
+export function getURL() {
+  let url =
+    process?.env?.NEXT_PUBLIC_SITE_URL ?? // Set this for production
+    process?.env?.NEXT_PUBLIC_VERCEL_URL ?? // Automatically set by Vercel
+    'http://localhost:3000/';
+
+  // Ensure protocol is present
+  url = url.includes('http') ? url : `https://${url}`;
+  
+  // Ensure no trailing slash for consistency
+  return url.replace(/\/$/, '');
 }
 
-/**
- * The OAuth callback URL — passed as `redirectTo` in signInWithOAuth().
- * Google redirects here after the user approves access.
- * Handler: app/auth/callback/route.ts
- */
-export function getAuthCallbackUrl(): string {
+export function getAuthCallbackUrl() {
   return `${getURL()}/auth/callback`;
 }
-
 /**
  * The session synchronizer URL — called by Client Components to refresh
  * and sync the server-side session after a client-side token rotation.
